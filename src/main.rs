@@ -1,35 +1,65 @@
 use serde_derive::{Deserialize, Serialize};
 use std::convert::Infallible;
 use warp::Filter;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{Utc};
 use std::env;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use reqwest::header::{AUTHORIZATION, ACCEPT};
+use reqwest::header::{AUTHORIZATION, ACCEPT, USER_AGENT};
 use warp::http::StatusCode;
+use log::{info};
 
-#[derive(Deserialize, Serialize)]
-struct GithubWebhook {
+#[derive(Deserialize)]
+struct CheckSuite {
+    head_sha: String,
+}
+
+#[derive(Deserialize)]
+struct Installation {
+    id: u32,
+}
+
+#[derive(Deserialize)]
+struct Repository {
+    full_name: String,
+}
+
+#[derive(Deserialize)]
+struct GithubWebhookRequest {
     action: String,
+    check_suite: CheckSuite,
+    installation: Installation,
+    repository: Repository
 }
 
 #[tokio::main]
 async fn main() {
+    let _ = pretty_env_logger::try_init();
+
     let promote = warp::post()
         .and(warp::path("test"))
-        // .and(warp::body::json())
+        .and(warp::body::json::<GithubWebhookRequest>())
         .and_then(handle_request);
 
-    warp::serve(promote).run(([127, 0, 0, 1], 3030)).await
+    let token = warp::get()
+        .and(warp::path("token"))
+        .map(|| {
+            match authenticate_app() {
+                Ok(token) => token,
+                Err(_) => "something went wrong...".to_string(),
+            }
+        });
+
+    warp::serve(promote.or(token)).run(([127, 0, 0, 1], 3030)).await
 }
 
-async fn handle_request() -> Result<impl warp::Reply, Infallible> {
-    match do_stuff().await {
+async fn handle_request(github_webhook_request: GithubWebhookRequest) -> Result<impl warp::Reply, Infallible> {
+    match do_stuff(github_webhook_request).await {
         Ok(()) => Ok(warp::reply::with_status("good shit".to_string(), StatusCode::OK)),
-        Err(_) => Ok(warp::reply::with_status("".to_string(), StatusCode::INTERNAL_SERVER_ERROR)),
+        Err(error) => Ok(warp::reply::with_status(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR)),
     }
 }
 
-async fn do_stuff() -> Result<(), Box<dyn std::error::Error>> {
+async fn do_stuff(github_webhook_request: GithubWebhookRequest) -> Result<(), Box<dyn std::error::Error>> {
     let github_jwt_token = authenticate_app()?;
 
     let github_authorisation_client = GithubAuthorisationClient {
@@ -37,15 +67,15 @@ async fn do_stuff() -> Result<(), Box<dyn std::error::Error>> {
         base_url: "https://api.github.com".to_string(),
     };
 
-    let installation_access_token = github_authorisation_client.get_installation_access_token("1234".to_string()).await?;
+    let installation_access_token = github_authorisation_client.get_installation_access_token(github_webhook_request.installation.id).await?;
 
     let github_installation_client = GithubInstallationClient {
-        repository_name: "test_123".to_string(),
+        repository_name: github_webhook_request.repository.full_name.to_string(),
         github_installation_token: installation_access_token,
         base_url: "https://api.github.com".to_string(),
     };
 
-    github_installation_client.create_check_run("12345".to_string()).await?;
+    github_installation_client.create_check_run(github_webhook_request.check_suite.head_sha).await?;
 
     Ok(())
 }
@@ -73,16 +103,21 @@ impl GithubInstallationClient {
             head_sha: head_sha
         };
 
-        let bearer_header = format!("Bearer {}", self.github_installation_token);
+        info!("Creating the check run...");
 
-        reqwest::Client::new()
+        let response = reqwest::Client::new()
             .post(&request_url)
-            .header(AUTHORIZATION, bearer_header)
+            .bearer_auth(self.github_installation_token.to_string())
+            .header(ACCEPT, "application/vnd.github.antiope-preview+json")
+            .header(USER_AGENT, "my-test-app")
             .json(&create_check_run_request)
             .send()
             .await?;
-    
-        Ok(())
+
+        match response.status() {
+            StatusCode::CREATED => Ok(()),
+            other => Err(other.to_string().into()),
+        } 
     }
 }
 
@@ -97,43 +132,58 @@ struct InstallationAccessTokenResponse {
 }
 
 impl GithubAuthorisationClient {
-    async fn get_installation_access_token(&self, installation_id: String) -> Result<String, Box<dyn std::error::Error>> {
+    async fn get_installation_access_token(&self, installation_id: u32) -> Result<String, Box<dyn std::error::Error>> {
         let request_url = format!("{}/app/installations/{}/access_tokens", self.base_url, installation_id);
 
-        let bearer_header = format!("Bearer {}", self.github_jwt_token);
+        info!("Requesting installation access token at {}...", &request_url);
 
         let response = reqwest::Client::new()
-            .get(&request_url)
-            .header(AUTHORIZATION, bearer_header)
+            .post(&request_url)
+            .bearer_auth(self.github_jwt_token.to_string())
             .header(ACCEPT, "application/vnd.github.machine-man-preview+json")
+            .header(USER_AGENT, "my-test-app")
             .send()
-            .await?
+            .await?;
+
+        info!("Got response code {} back. Trying to decode now...", response.status());
+
+        let response_body = response
             .json::<InstallationAccessTokenResponse>()
             .await?;
     
-        Ok(response.token)
+        info!("Successfully got the access token!");
+
+        Ok(response_body.token)
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    exp: DateTime<Utc>, // Required (validate_exp defaults to true in validation). Expiration time
-    iat: DateTime<Utc>, // Optional. Issued at
+    exp: i64, // Required (validate_exp defaults to true in validation). Expiration time
+    iat: i64, // Optional. Issued at
     iss: String         // Optional. Issuer
 }
 
 fn authenticate_app() -> Result<std::string::String, Box<dyn std::error::Error>> {
     let application_id = env::var("APPLICATION_ID")?;
 
+    let now = Utc::now().timestamp();
+    let ten_minutes_from_now = now + (10 * 60);
+
+    info!("now: {}", now);
+    info!("later: {}", ten_minutes_from_now);
+
     let claim = Claims {
-        exp: Utc::now(),
-        iat: Utc::now() + Duration::minutes(10),
+        exp: ten_minutes_from_now,
+        iat: now,
         iss: application_id
     };
 
     let secret = env::var("PRIVATE_KEY")?;
 
     let token = encode(&Header::new(Algorithm::RS256), &claim, &EncodingKey::from_rsa_pem(secret.as_bytes())?)?;
+
+    info!("token: {}", token);
 
     return Ok(token);
 }
