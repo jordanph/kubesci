@@ -116,9 +116,10 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
             "containers": [{
               "name": "myapp-container-1",
               "image": "busybox",
-              "command": ["sh", "-c", "echo Hello Kubernetes! && sleep 10"]
+              "command": ["sh", "-c", "echo Hello Kubernetes! && sleep 20"]
             },
             ],
+            "restartPolicy": "Never",
         }
     }))?;
 
