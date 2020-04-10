@@ -7,6 +7,14 @@ use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use reqwest::header::{ACCEPT, USER_AGENT};
 use warp::http::StatusCode;
 use log::{info};
+use k8s_openapi::api::core::v1::Pod;
+use serde_json::json;
+use std::{thread, time};
+
+use kube::{
+    api::{Api, Meta, PostParams},
+    Client,
+};
 
 #[derive(Deserialize)]
 struct CheckSuite {
@@ -68,6 +76,10 @@ async fn main() {
 }
 
 async fn handle_check_run_request(github_webhook_request: GithubCheckRunRequest) -> Result<impl warp::Reply, Infallible> {
+    if github_webhook_request.action == "completed" {
+        return Ok(warp::reply::with_status("good shit".to_string(), StatusCode::OK));
+    }
+
     match set_check_run_in_progress(github_webhook_request).await {
         Ok(()) => Ok(warp::reply::with_status("good shit".to_string(), StatusCode::OK)),
         Err(error) => Ok(warp::reply::with_status(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR)),
@@ -75,6 +87,10 @@ async fn handle_check_run_request(github_webhook_request: GithubCheckRunRequest)
 }
 
 async fn handle_check_suite_request(github_webhook_request: GithubCheckSuiteRequest) -> Result<impl warp::Reply, Infallible> {
+    if github_webhook_request.action == "completed" {
+        return Ok(warp::reply::with_status("good shit".to_string(), StatusCode::OK));
+    }
+
     match create_check_run(github_webhook_request).await {
         Ok(()) => Ok(warp::reply::with_status("good shit".to_string(), StatusCode::OK)),
         Err(error) => Ok(warp::reply::with_status(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR)),
@@ -82,6 +98,42 @@ async fn handle_check_suite_request(github_webhook_request: GithubCheckSuiteRequ
 }
 
 async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest) -> Result<(), Box<dyn std::error::Error>> {
+    info!("Setting up CI process for check run {}..", github_webhook_request.check_run.id);
+    
+    let client = Client::infer().await?;
+    let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+
+    // Manage pods
+    let pods: Api<Pod> = Api::namespaced(client, &namespace);
+    
+    info!("Creating Pod instance blog...");
+    
+    let pod_deployment_config: Pod = serde_json::from_value(json!({
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "metadata": { "name": "blog" },
+        "spec": {
+            "containers": [{
+              "name": "myapp-container-1",
+              "image": "busybox",
+              "command": ["sh", "-c", "echo Hello Kubernetes! && sleep 10"]
+            },
+            ],
+        }
+    }))?;
+
+    let pp = PostParams::default();
+    match pods.create(&pp, &pod_deployment_config).await {
+        Ok(o) => {
+            let name = Meta::name(&o);
+            info!("Created pod: {}!", name);
+        }
+        Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409), // if you skipped delete, for instance
+        Err(e) => return Err(e.into()),                        // any other case is probably bad
+    }
+
+    info!("Pod has spun up! Notify Github that test is in progress...");
+
     let github_jwt_token = authenticate_app()?;
 
     let github_authorisation_client = GithubAuthorisationClient {
@@ -98,6 +150,41 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
     };
 
     github_installation_client.set_check_run_in_progress(github_webhook_request.check_run.id).await?;
+
+    info!("Waiting for pod to finish to return completion state...");
+
+    let termination_status = loop {
+        let p1cpy = pods.get("blog").await?;
+        if let Some(status) = p1cpy.status {
+            if let Some(container_statuses) = status.container_statuses {
+                let maybe_container_status = container_statuses
+                    .into_iter()
+                    .find(|container_status| container_status.name == "myapp-container-1");
+
+                if let Some(container_status) = maybe_container_status {
+                    if let Some(state) = container_status.state {
+                        if let Some(_) = state.running {
+                            info!("Pod is still running...");
+                        } else if let Some(terminated) = state.terminated {
+                            info!("Pod has finished!");
+                            break terminated;
+                        } else {
+                            info!("Pod is still waiting...");
+                        }
+                    }
+                }
+
+            }
+        }
+
+        thread::sleep(time::Duration::from_secs(5));
+    };
+
+    if termination_status.exit_code == 0 {
+        github_installation_client.set_check_run_complete(github_webhook_request.check_run.id, "success".to_string()).await?;
+    } else {
+        github_installation_client.set_check_run_complete(github_webhook_request.check_run.id, "failure".to_string()).await?;
+    }
 
     Ok(())
 }
@@ -144,6 +231,16 @@ struct UpdateCheckRunRequest {
     started_at: String, // ISO 8601
 }
 
+#[derive(Deserialize, Serialize)]
+struct CompletedCheckRunRequest {
+    accept: String,
+    name: String,
+    status: String,
+    started_at: String, // ISO 8601
+    conclusion: String,
+    completed_at: String, // ISO 8601
+}
+
 
 impl GithubInstallationClient {
     async fn create_check_run(&self, head_sha: String) -> Result<(), Box<dyn std::error::Error>> {
@@ -182,7 +279,36 @@ impl GithubInstallationClient {
             started_at: Utc::now().to_rfc3339(),
         };
 
-        info!("Creating the check run...");
+        info!("Setting the check run to in progress...");
+
+        let response = reqwest::Client::new()
+            .patch(&request_url)
+            .bearer_auth(self.github_installation_token.to_string())
+            .header(ACCEPT, "application/vnd.github.antiope-preview+json")
+            .header(USER_AGENT, "my-test-app")
+            .json(&update_check_run_request)
+            .send()
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(()),
+            other => Err(other.to_string().into()),
+        } 
+    }
+
+    async fn set_check_run_complete(&self, check_run_id: i64, conclusion: String) -> Result<(), Box<dyn std::error::Error>> {
+        let request_url = format!("{}/repos/{}/check-runs/{}", self.base_url, self.repository_name, check_run_id);
+
+        let update_check_run_request = CompletedCheckRunRequest {
+            accept: "application/vnd.github.antiope-preview+json".to_string(),
+            name: "Test run".to_string(),
+            status: "completed".to_string(),
+            started_at: Utc::now().to_rfc3339(),
+            completed_at: Utc::now().to_rfc3339(),
+            conclusion: conclusion.to_string(),
+        };
+
+        info!("Setting the check run to complete!");
 
         let response = reqwest::Client::new()
             .patch(&request_url)
