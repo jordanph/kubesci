@@ -28,6 +28,7 @@ struct CheckSuite {
 struct CheckRun {
     id: i64,
     check_suite: CheckSuite,
+    started_at: String,
 }
 
 #[derive(Deserialize)]
@@ -212,9 +213,9 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
     };
 
     if termination_status.exit_code == 0 {
-        github_installation_client.set_check_run_complete(github_webhook_request.check_run.id, "success".to_string()).await?;
+        github_installation_client.set_check_run_complete(github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "success".to_string()).await?;
     } else {
-        github_installation_client.set_check_run_complete(github_webhook_request.check_run.id, "failure".to_string()).await?;
+        github_installation_client.set_check_run_complete(github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "failure".to_string()).await?;
     }
 
     Ok(())

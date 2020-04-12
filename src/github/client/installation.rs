@@ -89,14 +89,14 @@ impl GithubInstallationClient {
         } 
     }
 
-    pub async fn set_check_run_complete(&self, check_run_id: i64, conclusion: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn set_check_run_complete(&self, started_at: String, check_run_id: i64, conclusion: String) -> Result<(), Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/check-runs/{}", self.base_url, self.repository_name, check_run_id);
 
         let update_check_run_request = CompletedCheckRunRequest {
             accept: "application/vnd.github.antiope-preview+json".to_string(),
             name: "Test run".to_string(),
             status: "completed".to_string(),
-            started_at: Utc::now().to_rfc3339(),
+            started_at: started_at,
             completed_at: Utc::now().to_rfc3339(),
             conclusion: conclusion.to_string(),
         };
