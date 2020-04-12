@@ -1,4 +1,4 @@
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Serialize;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use warp::http::StatusCode;
 use chrono::Utc;

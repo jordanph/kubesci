@@ -4,11 +4,11 @@ steps:
     commands: 
       - sh
       - -c 
-      - echo "hello world!" && sleep 20
+      - echo "hello world!" && sleep 30
 
   - name: "Run tests"
     image: busybox
     commands: 
       - sh 
       - -c 
-      - echo "hello world!" && sleep 10
+      - echo "hello world!" && sleep 5
