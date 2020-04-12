@@ -1,0 +1,14 @@
+steps:
+  - name: "Run linting"
+    image: busybox
+    commands: 
+      - sh
+      - -c 
+      - echo "hello world!" && sleep 30
+
+  - name: "Run tests"
+    image: busybox
+    commands: 
+      - sh 
+      - -c 
+      - echo "hello world!" && sleep 5
