@@ -1,12 +1,12 @@
 steps:
-  - name: "Run linting"
-    image: busybox
+  - name: "Run tests"
+    image: rust:1.42
     commands: 
       - sh
-      - -c 
-      - ls && echo "hello world!" && sleep 30
+      - -c
+      - cargo test
 
-  - name: "Run tests"
+  - name: "Run linting"
     image: busybox
     commands: 
       - sh 
