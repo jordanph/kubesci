@@ -20,6 +20,13 @@ struct UpdateCheckRunRequest {
 }
 
 #[derive(Serialize)]
+struct CheckRunOutput {
+    title: String,
+    summary: String,
+    text: String,
+}
+
+#[derive(Serialize)]
 struct CompletedCheckRunRequest {
     accept: String,
     name: String,
@@ -27,6 +34,7 @@ struct CompletedCheckRunRequest {
     started_at: String, // ISO 8601
     conclusion: String,
     completed_at: String, // ISO 8601
+    output: Option<CheckRunOutput>,
 }
 
 pub struct GithubInstallationClient {
@@ -89,7 +97,7 @@ impl GithubInstallationClient {
         } 
     }
 
-    pub async fn set_check_run_complete(&self, name: &String, started_at: String, check_run_id: i64, conclusion: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn set_check_run_complete(&self, name: &String, started_at: String, check_run_id: i64, conclusion: String, logs: &String) -> Result<(), Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/check-runs/{}", self.base_url, self.repository_name, check_run_id);
 
         let update_check_run_request = CompletedCheckRunRequest {
@@ -99,6 +107,11 @@ impl GithubInstallationClient {
             started_at: started_at,
             completed_at: Utc::now().to_rfc3339(),
             conclusion: conclusion.to_string(),
+            output: Some(CheckRunOutput {
+                title: name.to_string(),
+                summary: "Complete!".to_string(),
+                text: logs.to_string(),
+            }),
         };
 
         info!("Setting the check run to complete!");

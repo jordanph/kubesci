@@ -4,7 +4,7 @@ use warp::Filter;
 use warp::http::StatusCode;
 use log::{info};
 use k8s_openapi::api::core::v1::Pod;
-use std::{thread, time};
+use std::time;
 
 use github::client::auth::GithubAuthorisationClient;
 use github::client::installation::GithubInstallationClient;
@@ -14,7 +14,7 @@ mod github;
 mod pipeline;
 
 use kube::{
-    api::{Api, Meta, PostParams},
+    api::{Api, Meta, PostParams, LogParams},
     Client,
 };
 
@@ -110,7 +110,6 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
     let client = Client::infer().await?;
     let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
-    // Manage pods
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
     let github_jwt_token = authenticate_app()?;
@@ -134,6 +133,7 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
 
     let termination_status = loop {
         let p1cpy = pods.get(&github_webhook_request.check_run.check_suite.head_sha).await?;
+
         if let Some(status) = p1cpy.status {
             if let Some(container_statuses) = status.container_statuses {
                 let maybe_container_status = container_statuses
@@ -154,6 +154,7 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
                             info!("Pod is still running...");
                         } else if let Some(terminated) = state.terminated {
                             info!("Pod has finished!");
+
                             break terminated;
                         } else {
                             info!("Pod is still waiting...");
@@ -164,13 +165,21 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
             }
         }
 
-        thread::sleep(time::Duration::from_secs(5));
+        tokio::time::delay_for(time::Duration::from_secs(5)).await;
     };
 
+    let mut lp = LogParams::default();
+    lp.follow = true;
+    lp.timestamps = true;
+    lp.container = Some(github_webhook_request.check_run.name.replace(" ", "-").to_lowercase());
+
+    let logs = pods.logs(&github_webhook_request.check_run.check_suite.head_sha, &lp).await?;
+    let logs_with_exit_status = logs + &format!("\nExited with Status Code: {}", termination_status.exit_code);
+
     if termination_status.exit_code == 0 {
-        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "success".to_string()).await?;
+        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "success".to_string(), &logs_with_exit_status).await?;
     } else {
-        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "failure".to_string()).await?;
+        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "failure".to_string(), &logs_with_exit_status).await?;
     }
 
     Ok(())
@@ -198,13 +207,13 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
 
     let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
         &pipeline,
-        &github_webhook_request.check_suite.head_sha
+        &github_webhook_request.check_suite.head_sha,
+        &github_webhook_request.repository.full_name,
     )?;
 
     let client = Client::infer().await?;
     let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
-    // Manage pods
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
     info!("Creating Pod for checks...");
