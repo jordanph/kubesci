@@ -4,7 +4,7 @@ steps:
     commands: 
       - sh
       - -c 
-      - echo "hello world!" && sleep 30
+      - ls && echo "hello world!" && sleep 30
 
   - name: "Run tests"
     image: busybox

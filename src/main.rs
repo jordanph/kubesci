@@ -110,7 +110,6 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
     let client = Client::infer().await?;
     let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
-    // Manage pods
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
     let github_jwt_token = authenticate_app()?;
@@ -171,7 +170,6 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
 
     let mut lp = LogParams::default();
     lp.follow = true;
-    lp.tail_lines = Some(1);
     lp.timestamps = true;
     lp.container = Some(github_webhook_request.check_run.name.replace(" ", "-").to_lowercase());
 
@@ -209,13 +207,13 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
 
     let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
         &pipeline,
-        &github_webhook_request.check_suite.head_sha
+        &github_webhook_request.check_suite.head_sha,
+        &github_webhook_request.repository.full_name,
     )?;
 
     let client = Client::infer().await?;
     let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
-    // Manage pods
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
     info!("Creating Pod for checks...");
