@@ -172,14 +172,16 @@ async fn set_check_run_in_progress(github_webhook_request: GithubCheckRunRequest
     let mut lp = LogParams::default();
     lp.follow = true;
     lp.tail_lines = Some(1);
+    lp.timestamps = true;
     lp.container = Some(github_webhook_request.check_run.name.replace(" ", "-").to_lowercase());
 
     let logs = pods.logs(&github_webhook_request.check_run.check_suite.head_sha, &lp).await?;
+    let logs_with_exit_status = logs + &format!("\nExited with Status Code: {}", termination_status.exit_code);
 
     if termination_status.exit_code == 0 {
-        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "success".to_string(), &logs).await?;
+        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "success".to_string(), &logs_with_exit_status).await?;
     } else {
-        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "failure".to_string(), &logs).await?;
+        github_installation_client.set_check_run_complete(&github_webhook_request.check_run.name, github_webhook_request.check_run.started_at, github_webhook_request.check_run.id, "failure".to_string(), &logs_with_exit_status).await?;
     }
 
     Ok(())
