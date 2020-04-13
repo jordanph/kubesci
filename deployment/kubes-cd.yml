@@ -1,0 +1,69 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubes-cd
+  namespace: default
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: kubes-cd
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "watch", "list", "create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: kubes-cd
+  namespace: default
+roleRef:
+  kind: Role
+  name: kubes-cd
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: kubes-cd
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubes-cd-deployment
+  labels:
+    app: kubes-cd-controller
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kubes-cd-controller
+  template:
+    metadata:
+      labels:
+        app: kubes-cd-controller
+    spec:
+      serviceAccount: kubes-cd
+      serviceAccountName: kubes-cd
+      containers:
+      - name: kubes-cd-controller
+        image: jordanph/kubes-cd:latest
+        ports:
+        - containerPort: 3030
+        env:
+          - name: GITHUB_APPLICATION_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: github-ssh-key
+                key: secret
+          - name: APPLICATION_ID
+            value: "43174"
+          - name: NAMESPACE
+            value: "default"
+          - name: RUST_LOG
+            value: "debug"

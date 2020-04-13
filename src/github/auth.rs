@@ -5,9 +5,9 @@ use chrono::Utc;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    exp: i64, // Required (validate_exp defaults to true in validation). Expiration time
-    iat: i64, // Optional. Issued at
-    iss: String         // Optional. Issuer
+    exp: i64,
+    iat: i64,
+    iss: String
 }
 
 pub fn authenticate_app() -> Result<std::string::String, Box<dyn std::error::Error>> {
@@ -22,7 +22,7 @@ pub fn authenticate_app() -> Result<std::string::String, Box<dyn std::error::Err
         iss: application_id
     };
 
-    let secret = env::var("PRIVATE_KEY")?;
+    let secret = env::var("GITHUB_APPLICATION_PRIVATE_KEY")?;
 
     let token = encode(&Header::new(Algorithm::RS256), &claim, &EncodingKey::from_rsa_pem(secret.as_bytes())?)?;
 
