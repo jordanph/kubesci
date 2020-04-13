@@ -61,7 +61,7 @@ spec:
               secretKeyRef:
                 name: github-ssh-key
                 key: secret
-          - name: APPLICATION_ID
-            value: "43174"
           - name: NAMESPACE
             value: "default"
+          - name: RUST_LOG
+            value: "info"

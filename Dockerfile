@@ -1,7 +1,22 @@
 FROM rust:1.42 AS build
 
-COPY ./ ./
+# create a new empty shell project
+RUN USER=root cargo new --bin kubes-cd
+WORKDIR /kubes-cd
 
+# copy over your manifests
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
+
+# this build step will cache your dependencies
+RUN cargo build --release
+RUN rm src/*.rs
+
+# copy your source tree
+COPY ./src ./src
+
+# build for release
+RUN rm ./target/release/deps/kubes_cd*
 RUN cargo build --release
 
 RUN mkdir -p /build-out
