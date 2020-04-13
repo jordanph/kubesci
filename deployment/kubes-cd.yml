@@ -56,12 +56,14 @@ spec:
         ports:
         - containerPort: 3030
         env:
-          - name: PRIVATE_KEY
+          - name: GITHUB_APPLICATION_PRIVATE_KEY
             valueFrom:
               secretKeyRef:
                 name: github-ssh-key
                 key: secret
+          - name: APPLICATION_ID
+            value: "43174"
           - name: NAMESPACE
             value: "default"
           - name: RUST_LOG
-            value: "info"
+            value: "debug"

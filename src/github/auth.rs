@@ -5,11 +5,13 @@ use chrono::Utc;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    exp: i64, // Required (validate_exp defaults to true in validation). Expiration time
-    iat: i64, // Optional. Issued at
+    exp: i64,
+    iat: i64,
+    iss: String
 }
 
 pub fn authenticate_app() -> Result<std::string::String, Box<dyn std::error::Error>> {
+    let application_id = env::var("APPLICATION_ID")?;
 
     let now = Utc::now().timestamp();
     let ten_minutes_from_now = now + (10 * 60);
@@ -17,6 +19,7 @@ pub fn authenticate_app() -> Result<std::string::String, Box<dyn std::error::Err
     let claim = Claims {
         exp: ten_minutes_from_now,
         iat: now,
+        iss: application_id
     };
 
     let secret = env::var("GITHUB_APPLICATION_PRIVATE_KEY")?;

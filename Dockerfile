@@ -1,4 +1,4 @@
-FROM rust:1.42 AS build
+FROM rust:1.42@sha256:efb71dab7a9b8c90d1d4527da04b070f33517969300668676011d59c041e177d AS build
 
 # create a new empty shell project
 RUN USER=root cargo new --bin kubes-cd
@@ -23,7 +23,7 @@ RUN mkdir -p /build-out
 
 RUN cp target/release/kubes-cd /build-out/
 
-FROM ubuntu@sha256:5f4bdc3467537cbbe563e80db2c3ec95d548a9145d64453b06939c4592d67b6d
+FROM ubuntu@sha256:bec5a2727be7fff3d308193cfde3491f8fba1a2ba392b7546b43a051853a341d
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get -y install ca-certificates libssl-dev && rm -rf /var/lib/apt/lists/*
