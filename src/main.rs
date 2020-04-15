@@ -21,6 +21,7 @@ use kube::{
 #[derive(Deserialize)]
 struct CheckSuite {
     head_sha: String,
+    head_branch: String,
 }
 
 #[derive(Deserialize)]
@@ -209,6 +210,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
         &pipeline,
         &github_webhook_request.check_suite.head_sha,
         &github_webhook_request.repository.full_name,
+        &github_webhook_request.check_suite.head_branch,
     )?;
 
     let client = Client::infer().await?;
