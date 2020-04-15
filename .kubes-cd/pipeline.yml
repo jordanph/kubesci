@@ -8,7 +8,30 @@ steps:
 
   - name: "Run linting"
     image: busybox
+    branch: "!master"
     commands: 
       - sh 
       - -c 
-      - echo "hello world!" && sleep 5
+      - echo "$HELLO_WORLD" && sleep 5
+    env:
+      - name: HELLO_WORLD
+        value: "hello world!"
+
+  - name: "Release"
+    image: docker
+    branch: master
+    commands:
+      - sh
+      - -c
+      - docker build -t jordanph/kubes-cd:latest . && echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin && docker push jordanph/kubes-cd:latest
+    env:
+      - name: DOCKER_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: docker
+            key: username
+      - name: DOCKER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: docker
+            key: password

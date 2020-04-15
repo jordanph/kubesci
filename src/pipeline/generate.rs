@@ -1,14 +1,45 @@
 use serde_json::json;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use log::info;
 
 use k8s_openapi::api::core::v1::Pod;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+struct BasicEnv {
+    name: String,
+    value: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SecretKeyRef {
+    name: String,
+    key: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ValueFrom {
+    #[serde(rename="secretKeyRef")]
+    secret_key_ref: SecretKeyRef
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+enum Environment {
+    BasicEnv { name: String, value: String},
+    KubernetesSecretEnv {
+        name: String,
+        #[serde(rename="valueFrom")]
+        value_from: ValueFrom
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Step {
     pub name: String,
     image: String,
     commands: std::vec::Vec<String>,
+    branch: Option<String>,
+    env: Option<std::vec::Vec<Environment>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -16,19 +47,27 @@ pub struct Pipeline {
     pub steps: std::vec::Vec<Step>,
 }
 
-pub fn generate_kubernetes_pipeline(pipeline: &Pipeline, github_head_sha: &String, repo_name: &String) -> Result<Pod, Box<dyn std::error::Error>> {
-    let containers: serde_json::value::Value = pipeline.steps.iter().map(|step| {
-        return json!({
-            "name": step.name.replace(" ", "-").to_lowercase(),
-            "image": step.image,
-            "command": step.commands,
-            "workingDir": "/app",
-            "volumeMounts": [{
-                "name": "repo",
-                "mountPath": "/app",
-            }]
-        });
-    }).collect();
+pub fn generate_kubernetes_pipeline(pipeline: &Pipeline, github_head_sha: &String, repo_name: &String, github_branch_name: &String,) -> Result<Pod, Box<dyn std::error::Error>> {
+    let containers: serde_json::value::Value =
+        pipeline
+            .steps
+            .iter()
+            .filter(|step| skip_step(step, github_branch_name))
+            .map(|step| {
+                let env = json!(step.env);
+
+                return json!({
+                    "name": step.name.replace(" ", "-").to_lowercase(),
+                    "image": step.image,
+                    "command": step.commands,
+                    "workingDir": "/app",
+                    "volumeMounts": [{
+                        "name": "repo",
+                        "mountPath": "/app",
+                    }],
+                    "env": env
+                });
+            }).collect();
 
     info!("Containers to deploy {}", containers);
 
@@ -66,4 +105,12 @@ pub fn generate_pipeline(raw_pipeline: &String) -> Result<Pipeline, Box<dyn std:
     let yaml_steps: Pipeline = serde_yaml::from_str(&raw_pipeline)?;
 
     return Ok(yaml_steps);
+}
+
+fn skip_step(step: &Step, github_branch_name: &String) -> bool {
+    return step.branch.is_none() || step.branch == Some(github_branch_name.to_string()) || not_branch(step.branch.as_ref(), github_branch_name);
+}
+
+fn not_branch(branch: Option<&String>, github_branch_name: &String) -> bool {
+    return branch.map(|branch| branch.chars().next() == Some('!') && branch[1..] != github_branch_name.to_string()).unwrap_or(false);
 }
