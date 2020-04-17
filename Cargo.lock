@@ -759,6 +759,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tokio",
+ "vec1",
  "warp",
 ]
 
@@ -1980,6 +1981,15 @@ name = "vcpkg"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fc439f2794e98976c88a2a2dafce96b930fe8010b0a256b3c2199a773933168"
+
+[[package]]
+name = "vec1"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ad2a3844cc028661fe02ab1fa64c117ce726ed268d0b93a56d8c2d5a96f961"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "version_check"

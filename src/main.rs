@@ -6,6 +6,9 @@ use log::{info};
 use k8s_openapi::api::core::v1::Pod;
 use std::time;
 
+#[macro_use]
+extern crate vec1;
+
 use github::client::auth::GithubAuthorisationClient;
 use github::client::installation::GithubInstallationClient;
 use github::auth::authenticate_app;
@@ -206,32 +209,35 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
 
     let pipeline = pipeline::generate::generate_pipeline(&raw_pipeline)?;
 
-    let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
-        &pipeline,
-        &github_webhook_request.check_suite.head_sha,
-        &github_webhook_request.repository.full_name,
-        &github_webhook_request.check_suite.head_branch,
-    )?;
+    let maybe_steps = pipeline::generate::filter_steps(&pipeline.steps, &github_webhook_request.check_suite.head_branch);
 
-    let client = Client::infer().await?;
-    let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+    if let Some(steps) = maybe_steps {
+        let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
+            &steps,
+            &github_webhook_request.check_suite.head_sha,
+            &github_webhook_request.repository.full_name,
+        )?;
 
-    let pods: Api<Pod> = Api::namespaced(client, &namespace);
+        let client = Client::infer().await?;
+        let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
-    info!("Creating Pod for checks...");
+        let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
-    let pp = PostParams::default();
-    match pods.create(&pp, &pod_deployment).await {
-        Ok(o) => {
-            let name = Meta::name(&o);
-            info!("Created pod: {}!", name);
+        info!("Creating Pod for checks...");
+
+        let pp = PostParams::default();
+        match pods.create(&pp, &pod_deployment).await {
+            Ok(o) => {
+                let name = Meta::name(&o);
+                info!("Created pod: {}!", name);
+            }
+            Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409), // if you skipped delete, for instance
+            Err(e) => return Err(e.into()),                        // any other case is probably bad
         }
-        Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409), // if you skipped delete, for instance
-        Err(e) => return Err(e.into()),                        // any other case is probably bad
-    }
 
-    for step in pipeline.steps {
-        github_installation_client.create_check_run(&step.name, &github_webhook_request.check_suite.head_sha).await?;
+        for step in steps {
+            github_installation_client.create_check_run(&step.name, &github_webhook_request.check_suite.head_sha).await?;
+        }
     }
 
     Ok(())

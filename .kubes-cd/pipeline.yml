@@ -18,20 +18,12 @@ steps:
         value: "hello world!"
 
   - name: "Release"
-    image: docker
-    branch: master
-    commands:
-      - sh
-      - -c
-      - docker build -t jordanph/kubes-cd:latest . && echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin && docker push jordanph/kubes-cd:latest
-    env:
-      - name: DOCKER_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: docker
-            key: username
-      - name: DOCKER_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: docker
-            key: password
+    image: gcr.io/kaniko-project/executor:latest
+    # branch: master
+    args:
+      - "--dockerfile=/app/Dockerfile"
+      - "--context=dir:///app"
+      - "--destination=jordanph/kubes-cd:latest"
+    mountSecret:
+      - name: docker-config
+        mountPath: /kaniko/.docker
