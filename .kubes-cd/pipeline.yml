@@ -26,4 +26,4 @@ steps:
       - "--destination=jordanph/kubes-cd:latest"
     mountSecret:
       - name: docker-config
-        mountPath: /kaniko/.docker/config.json
+        mountPath: /kaniko/.docker

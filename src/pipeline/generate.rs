@@ -95,7 +95,8 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                 });
             }).collect();
 
-    info!("Containers to deploy {}", json!(containers));
+    info!("Containers to deploy: {}", json!(containers));
+
 
     let clone_url = format!("https://github.com/{}", repo_name);
 
@@ -106,7 +107,11 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                             .map(|mount_secret| json!({ "name": mount_secret.name, "secret": { "secretName": mount_secret.name}}))
                             .collect();
 
-    let volumes = [&json!({"name": "repo", "emptyDir": {}})].to_vec().extend(&secret_mounts);
+    let repo_mount: serde_json::value::Value = json!({"name": "repo", "emptyDir": {}});
+
+    let volumes = [secret_mounts, [repo_mount].to_vec()].concat();
+
+    info!("Volumes to deploy: {}", json!(volumes));
 
     let pod_deployment_config: Pod = serde_json::from_value(json!({
         "apiVersion": "v1",
@@ -129,6 +134,8 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
             "volumes": volumes
         }
     }))?;
+
+    info!("Pod configuration to deploy: {}", json!(pod_deployment_config));
 
     return Ok(pod_deployment_config);
 }
