@@ -39,7 +39,8 @@ struct MountSecret {
 pub struct Step {
     pub name: String,
     image: String,
-    commands: std::vec::Vec<String>,
+    commands: Option<std::vec::Vec<String>>,
+    args: Option<std::vec::Vec<String>>,
     branch: Option<String>,
     env: Option<Vec1<Environment>>,
     #[serde(rename="mountSecret")]
@@ -87,6 +88,7 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                     "name": step.name.replace(" ", "-").to_lowercase(),
                     "image": step.image,
                     "command": step.commands,
+                    "args": step.args,
                     "workingDir": "/app",
                     "volumeMounts": json!(mount_secrets),
                     "env": env
