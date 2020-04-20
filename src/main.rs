@@ -1,8 +1,8 @@
-use serde_derive::{Deserialize};
+use serde_derive::{Deserialize,Serialize};
 use std::convert::Infallible;
 use warp::Filter;
 use warp::http::StatusCode;
-use log::{info};
+use log::info;
 use k8s_openapi::api::core::v1::Pod;
 use std::time;
 
@@ -13,8 +13,11 @@ use github::client::auth::GithubAuthorisationClient;
 use github::client::installation::GithubInstallationClient;
 use github::auth::authenticate_app;
 
+use handlers::get_pipelines;
+
 mod github;
 mod pipeline;
+mod handlers;
 
 use kube::{
     api::{Api, Meta, PostParams, LogParams},
@@ -68,7 +71,7 @@ async fn main() {
     let check_suite_header = warp::header::exact("X-GitHub-Event", "check_suite");
 
     let check_suite_handler = warp::post()
-        .and(warp::path("test"))
+        .and(warp::path("webhook"))
         .and(check_suite_header)
         .and(warp::body::json::<GithubCheckSuiteRequest>())
         .and_then(handle_check_suite_request);
@@ -76,14 +79,40 @@ async fn main() {
     let check_suite_header = warp::header::exact("X-GitHub-Event", "check_run");
 
     let check_run_handler = warp::post()
-        .and(warp::path("test"))
+        .and(warp::path("webhook"))
         .and(check_suite_header)
         .and(warp::body::json::<GithubCheckRunRequest>())
         .and_then(handle_check_run_request);
 
-    let app_routes = check_suite_handler.or(check_run_handler);
+    let get_pipelines_handler = warp::get()
+        .and(warp::path("pipelines"))
+        .and_then(handle_get_pipelines);
+
+    let app_routes = check_suite_handler.or(check_run_handler).or(get_pipelines_handler);
 
     warp::serve(app_routes).run(([127, 0, 0, 1], 3030)).await
+}
+
+#[derive(Serialize)]
+struct ErrorMessage {
+    code: u16,
+}
+
+async fn handle_get_pipelines() -> Result<impl warp::Reply, Infallible> {
+    match get_pipelines().await {
+        Ok(pods) => {
+            let json = warp::reply::json(&pods);
+
+            Ok(warp::reply::with_status(json, StatusCode::OK))
+        },
+        Err(_) => {
+            let json = warp::reply::json(&ErrorMessage {
+                code: 500
+            });
+
+            Ok(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+        },
+    }
 }
 
 async fn handle_check_run_request(github_webhook_request: GithubCheckRunRequest) -> Result<impl warp::Reply, Infallible> {
@@ -216,6 +245,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
             &steps,
             &github_webhook_request.check_suite.head_sha,
             &github_webhook_request.repository.full_name,
+            &github_webhook_request.check_suite.head_branch,
         )?;
 
         let client = Client::infer().await?;
