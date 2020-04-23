@@ -2,7 +2,7 @@ use serde_derive::{Deserialize,Serialize};
 use std::convert::Infallible;
 use warp::Filter;
 use warp::http::StatusCode;
-use log::info;
+use log::{info, error};
 use k8s_openapi::api::core::v1::Pod;
 use std::time;
 
@@ -13,7 +13,7 @@ use github::client::auth::GithubAuthorisationClient;
 use github::client::installation::GithubInstallationClient;
 use github::auth::authenticate_app;
 
-use handlers::get_pipelines;
+use handlers::{get_pipelines, get_pipeline, get_pipeline_steps};
 
 mod github;
 mod pipeline;
@@ -68,6 +68,9 @@ pub struct GithubCheckRunRequest {
 async fn main() {
     let _ = pretty_env_logger::try_init();
 
+    let cors = warp::cors()
+        .allow_origin("http://localhost:3000");
+
     let check_suite_header = warp::header::exact("X-GitHub-Event", "check_suite");
 
     let check_suite_handler = warp::post()
@@ -86,9 +89,25 @@ async fn main() {
 
     let get_pipelines_handler = warp::get()
         .and(warp::path("pipelines"))
-        .and_then(handle_get_pipelines);
+        .and_then(handle_get_pipelines)
+        .with(cors);
 
-    let app_routes = check_suite_handler.or(check_run_handler).or(get_pipelines_handler);
+    let pipeline_cors = warp::cors()
+        .allow_origin("http://localhost:3000");
+
+    let get_pipeline_handler = warp::path!("pipelines" / String)
+        .and_then(handle_get_pipeline)
+        .with(pipeline_cors);
+
+    let steps_cors = warp::cors()
+        .allow_origin("http://localhost:3000");
+
+    let get_pipeline_steps_handler = warp::path!("pipelines" / String / String)
+        .and_then(handle_get_steps)
+        .with(steps_cors);
+
+
+    let app_routes = check_suite_handler.or(check_run_handler).or(get_pipeline_steps_handler).or(get_pipeline_handler).or(get_pipelines_handler);
 
     warp::serve(app_routes).run(([127, 0, 0, 1], 3030)).await
 }
@@ -105,7 +124,47 @@ async fn handle_get_pipelines() -> Result<impl warp::Reply, Infallible> {
 
             Ok(warp::reply::with_status(json, StatusCode::OK))
         },
-        Err(_) => {
+        Err(error) => {
+            error!("Unexpected error occurred: {}", error);
+
+            let json = warp::reply::json(&ErrorMessage {
+                code: 500
+            });
+
+            Ok(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+        },
+    }
+}
+
+async fn handle_get_pipeline(pipeline_name: String) -> Result<impl warp::Reply, Infallible> {
+    match get_pipeline(pipeline_name).await {
+        Ok(pods) => {
+            let json = warp::reply::json(&pods);
+
+            Ok(warp::reply::with_status(json, StatusCode::OK))
+        },
+        Err(error) => {
+            error!("Unexpected error occurred: {}", error);
+
+            let json = warp::reply::json(&ErrorMessage {
+                code: 500
+            });
+
+            Ok(warp::reply::with_status(json, StatusCode::INTERNAL_SERVER_ERROR))
+        },
+    }
+}
+
+async fn handle_get_steps(pipeline_name: String, commit: String) -> Result<impl warp::Reply, Infallible> {
+    match get_pipeline_steps(pipeline_name, commit).await {
+        Ok(pods) => {
+            let json = warp::reply::json(&pods);
+
+            Ok(warp::reply::with_status(json, StatusCode::OK))
+        },
+        Err(error) => {
+            error!("Unexpected error occurred: {}", error);
+
             let json = warp::reply::json(&ErrorMessage {
                 code: 500
             });
