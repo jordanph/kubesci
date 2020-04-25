@@ -67,7 +67,7 @@ pub fn filter_steps<'a>(steps: &'a[Step], github_branch_name: &String) -> Option
 }
 
 pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String, step_check_id_map: Vec<(String, i32)>) -> Result<Pod, Box<dyn std::error::Error>> {
-    let containers: Vec<serde_json::value::Value> = steps
+    let mut containers: Vec<serde_json::value::Value> = steps
             .iter()
             .map(|step| {
                 let env = json!(step.env);
@@ -100,6 +100,26 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
         .map(|map| format!("{}={}", map.0, map.1))
         .collect::<Vec<String>>()
         .join(",");
+
+    // Add the kubes side car container
+    containers.push(json!({
+        "name": "kubes-cd-sidecar",
+        "image": "jordanph/kubes-sidecar",
+        "env": [
+            {
+                "name": "CHECK_RUN_POD_NAME_MAP",
+                "value": step_check_id_map_env
+            },
+            {
+                "name": "POD_NAME",
+                "value": github_head_sha
+            },
+            {
+                "name": "RUST_LOG",
+                "value": "debug"
+            }
+        ]
+    }));
 
     info!("Check run ids to step map {}", step_check_id_map_env);
 
@@ -146,6 +166,8 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                     "mountPath": "/app",
                 }]
             }],
+            "serviceAccount": "kubes-cd",
+            "serviceAccountName": "kubes-cd",
             "containers": containers,
             "restartPolicy": "Never",
             "volumes": volumes
