@@ -66,7 +66,7 @@ pub fn filter_steps<'a>(steps: &'a[Step], github_branch_name: &String) -> Option
     return Vec1::try_from_vec(maybe_steps).ok();
 }
 
-pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String) -> Result<Pod, Box<dyn std::error::Error>> {
+pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String) -> Result<Pod, Box<dyn std::error::Error>> {
     let containers: Vec<serde_json::value::Value> = steps
             .iter()
             .map(|step| {
@@ -113,10 +113,20 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
 
     info!("Volumes to deploy: {}", json!(volumes));
 
+    let short_commit = &github_head_sha[0..7];
+
     let pod_deployment_config: Pod = serde_json::from_value(json!({
         "apiVersion": "v1",
         "kind": "Pod",
-        "metadata": { "name": github_head_sha },
+        "metadata": {
+            "name": github_head_sha,
+            "labels": {
+                "repo": repo_name.replace("/", "."),
+                "branch": branch,
+                "commit": short_commit,
+                "app": "kubes-cd-test"
+            }
+        },
         "spec": {
             "initContainers": [{
                 "name": "cd-setup",

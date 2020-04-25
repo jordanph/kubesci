@@ -19,14 +19,14 @@ struct UpdateCheckRunRequest {
     started_at: String, // ISO 8601
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct CheckRunOutput {
     title: String,
     summary: String,
     text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct CompletedCheckRunRequest {
     accept: String,
     name: String,
@@ -114,7 +114,7 @@ impl GithubInstallationClient {
             }),
         };
 
-        info!("Setting the check run to complete!");
+        info!("Setting the check run to complete with request: {:?}", update_check_run_request);
 
         let response = reqwest::Client::new()
             .patch(&request_url)
@@ -124,6 +124,8 @@ impl GithubInstallationClient {
             .json(&update_check_run_request)
             .send()
             .await?;
+
+        info!("Response was: {:?}", response);
 
         match response.status() {
             StatusCode::OK => Ok(()),
