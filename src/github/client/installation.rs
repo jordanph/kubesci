@@ -64,6 +64,8 @@ impl GithubInstallationClient {
             .send()
             .await?;
 
+        info!("Created check run! {:?}", response);
+
         match response.status() {
             StatusCode::CREATED => Ok(()),
             other => Err(other.to_string().into()),
