@@ -300,11 +300,20 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
     let maybe_steps = pipeline::generate::filter_steps(&pipeline.steps, &github_webhook_request.check_suite.head_branch);
 
     if let Some(steps) = maybe_steps {
+        let mut check_run_ids: Vec<(String, i32)> = Vec::new();
+ 
+        for step in &steps {
+            let checkrun_response = github_installation_client.create_check_run(&step.name, &github_webhook_request.check_suite.head_sha).await?;
+
+            check_run_ids.push((step.name.replace(" ", "-").to_lowercase(), checkrun_response.id));
+        }
+
         let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
             &steps,
             &github_webhook_request.check_suite.head_sha,
             &github_webhook_request.repository.full_name,
             &github_webhook_request.check_suite.head_branch,
+            check_run_ids,
         )?;
 
         let client = Client::infer().await?;
@@ -322,10 +331,6 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
             }
             Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409), // if you skipped delete, for instance
             Err(e) => return Err(e.into()),                        // any other case is probably bad
-        }
-
-        for step in steps {
-            github_installation_client.create_check_run(&step.name, &github_webhook_request.check_suite.head_sha).await?;
         }
     }
 

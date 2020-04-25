@@ -66,7 +66,7 @@ pub fn filter_steps<'a>(steps: &'a[Step], github_branch_name: &String) -> Option
     return Vec1::try_from_vec(maybe_steps).ok();
 }
 
-pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String) -> Result<Pod, Box<dyn std::error::Error>> {
+pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String, step_check_id_map: Vec<(String, i32)>) -> Result<Pod, Box<dyn std::error::Error>> {
     let containers: Vec<serde_json::value::Value> = steps
             .iter()
             .map(|step| {
@@ -95,8 +95,15 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                 });
             }).collect();
 
-    info!("Containers to deploy: {}", json!(containers));
+    let step_check_id_map_env: String = step_check_id_map
+        .iter()
+        .map(|map| format!("{}={}", map.0, map.1))
+        .collect::<Vec<String>>()
+        .join(",");
 
+    info!("Check run ids to step map {}", step_check_id_map_env);
+
+    info!("Containers to deploy: {}", json!(containers));
 
     let clone_url = format!("https://github.com/{}", repo_name);
 

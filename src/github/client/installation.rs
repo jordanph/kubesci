@@ -1,4 +1,4 @@
-use serde_derive::Serialize;
+use serde_derive::{Serialize,Deserialize};
 use reqwest::header::{ACCEPT, USER_AGENT};
 use warp::http::StatusCode;
 use chrono::Utc;
@@ -43,8 +43,13 @@ pub struct GithubInstallationClient {
     pub base_url: String,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct CreateCheckRunResponse {
+    pub id: i32,
+}
+
 impl GithubInstallationClient {
-    pub async fn create_check_run(&self, name: &String, head_sha: &String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn create_check_run(&self, name: &String, head_sha: &String) -> Result<CreateCheckRunResponse, Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/check-runs", self.base_url, self.repository_name);
 
         let create_check_run_request = CreateCheckRunRequest {
@@ -55,21 +60,18 @@ impl GithubInstallationClient {
 
         info!("Creating the check run...");
 
-        let response = reqwest::Client::new()
+        let check_run_response = reqwest::Client::new()
             .post(&request_url)
             .bearer_auth(self.github_installation_token.to_string())
             .header(ACCEPT, "application/vnd.github.antiope-preview+json")
             .header(USER_AGENT, "my-test-app")
             .json(&create_check_run_request)
             .send()
+            .await?
+            .json::<CreateCheckRunResponse>()
             .await?;
 
-        info!("Created check run! {:?}", response);
-
-        match response.status() {
-            StatusCode::CREATED => Ok(()),
-            other => Err(other.to_string().into()),
-        } 
+        Ok(check_run_response)
     }
 
     pub async fn set_check_run_in_progress(&self, name: &String, check_run_id: i64) -> Result<(), Box<dyn std::error::Error>> {
