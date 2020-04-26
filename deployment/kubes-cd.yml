@@ -46,7 +46,7 @@ metadata:
     app: kubes-cd-controller
   namespace: kubes-cd
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: kubes-cd-controller
