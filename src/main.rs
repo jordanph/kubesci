@@ -308,16 +308,18 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
             check_run_ids.push((step.name.replace(" ", "-").to_lowercase(), checkrun_response.id));
         }
 
+        let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+
         let pod_deployment = pipeline::generate::generate_kubernetes_pipeline(
             &steps,
             &github_webhook_request.check_suite.head_sha,
             &github_webhook_request.repository.full_name,
             &github_webhook_request.check_suite.head_branch,
             check_run_ids,
+            &namespace
         )?;
 
         let client = Client::infer().await?;
-        let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
 
         let pods: Api<Pod> = Api::namespaced(client, &namespace);
 

@@ -66,7 +66,7 @@ pub fn filter_steps<'a>(steps: &'a[Step], github_branch_name: &String) -> Option
     return Vec1::try_from_vec(maybe_steps).ok();
 }
 
-pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String, step_check_id_map: Vec<(String, i32)>) -> Result<Pod, Box<dyn std::error::Error>> {
+pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String, step_check_id_map: Vec<(String, i32)>, namespace: &String) -> Result<Pod, Box<dyn std::error::Error>> {
     let mut containers: Vec<serde_json::value::Value> = steps
             .iter()
             .map(|step| {
@@ -117,6 +117,14 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
             {
                 "name": "RUST_LOG",
                 "value": "debug"
+            },
+            {
+                "name": "KUBES_CD_CONTROLLER_BASE_URL",
+                "value": "http://kubes-cd-controller"
+            },
+            {
+                "name": "NAMESPACE",
+                "value": namespace
             }
         ]
     }));
@@ -152,7 +160,8 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
                 "branch": branch,
                 "commit": short_commit,
                 "app": "kubes-cd-test"
-            }
+            },
+            "namespace": namespace
         },
         "spec": {
             "initContainers": [{

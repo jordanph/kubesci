@@ -1,16 +1,22 @@
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubes-cd
+
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kubes-cd
-  namespace: default
+  namespace: kubes-cd
 automountServiceAccountToken: true
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: default
+  namespace: kubes-cd
   name: kubes-cd
 rules:
 - apiGroups: [""] # "" indicates the core API group
@@ -22,7 +28,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: kubes-cd
-  namespace: default
+  namespace: kubes-cd
 roleRef:
   kind: Role
   name: kubes-cd
@@ -38,6 +44,7 @@ metadata:
   name: kubes-cd-deployment
   labels:
     app: kubes-cd-controller
+  namespace: kubes-cd
 spec:
   replicas: 2
   selector:
@@ -64,6 +71,20 @@ spec:
           - name: APPLICATION_ID
             value: "43174"
           - name: NAMESPACE
-            value: "default"
+            value: "kubes-cd"
           - name: RUST_LOG
             value: "debug"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubes-cd-controller
+  namespace: kubes-cd
+spec:
+  selector:
+    app: kubes-cd-controller
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3030
