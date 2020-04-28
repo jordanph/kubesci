@@ -4,6 +4,7 @@ use warp::Filter;
 use warp::http::StatusCode;
 use log::{info, error};
 use k8s_openapi::api::core::v1::Pod;
+use std::net::SocketAddr;
 
 #[macro_use]
 extern crate vec1;
@@ -98,10 +99,14 @@ async fn main() {
         .and_then(handle_get_steps)
         .with(steps_cors);
 
-
     let app_routes = check_suite_handler.or(update_check_run_handler).or(get_pipeline_steps_handler).or(get_pipeline_handler).or(get_pipelines_handler);
 
-    warp::serve(app_routes).run(([0, 0, 0, 0], 3030)).await
+    let address = std::env::var("SOCKET_ADDRESS").unwrap_or("127.0.0.1".to_string());
+    let port = std::env::var("PORT").unwrap_or("3030".to_string());
+
+    let socket_address: SocketAddr = format!("{}:{}", address, port).parse().expect("Unable to parse socket address");
+
+    warp::serve(app_routes).run(socket_address).await
 }
 
 #[derive(Serialize)]
@@ -260,8 +265,8 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
                 let name = Meta::name(&o);
                 info!("Created pod: {}!", name);
             }
-            Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409), // if you skipped delete, for instance
-            Err(e) => return Err(e.into()),                        // any other case is probably bad
+            Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409),
+            Err(e) => return Err(e.into()),
         }
     }
 

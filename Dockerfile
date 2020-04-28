@@ -30,4 +30,7 @@ RUN apt-get update && apt-get -y install ca-certificates libssl-dev && rm -rf /v
 
 COPY --from=build /build-out/kubes-cd /
 
+ENV SOCKET_ADDRESS=0.0.0.0
+ENV PORT=3030
+
 CMD /kubes-cd
