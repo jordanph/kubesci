@@ -66,3 +66,81 @@ pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
     .and(warp::body::json::<CompleteCheckRunRequest>())
     .boxed()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    async fn test_route(_check_suite_request: GithubCheckSuiteRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
+        Ok(warp::reply())
+    }
+
+    #[tokio::test]
+    async fn should_respond_to_check_suite_request() {
+        let route = check_suite_route().and_then(test_route);
+
+        let body = json!({
+            "action": "complete",
+            "check_suite": {
+                "head_sha": "asnkqf1",
+                "head_branch": "test"
+            },
+            "installation": {
+                "id": 12345
+            },
+            "repository": {
+                "full_name": "test-repo"
+            }
+        });
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/webhook")
+            .header("X-GitHub-Event", "check_suite")
+            .json(&body)
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 200)
+    }
+
+    #[tokio::test]
+    async fn should_respond_with_user_error_if_check_suite_request_not_in_body() {
+        let route = check_suite_route().and_then(test_route);
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/webhook")
+            .header("X-GitHub-Event", "check_suite")
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 400)
+    }
+
+    #[tokio::test]
+    async fn should_respond_with_user_error_if_no_check_suite_header() {
+        let route = check_suite_route().and_then(test_route);
+
+        let body = json!({
+            "action": "complete",
+            "check_suite": {
+                "head_sha": "asnkqf1",
+                "head_branch": "test"
+            },
+            "installation": {
+                "id": 12345
+            },
+            "repository": {
+                "full_name": "test-repo"
+            }
+        });
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/webhook")
+            .json(&body)
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 400)
+    }
+}
