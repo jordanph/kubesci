@@ -7,6 +7,8 @@ use crate::github::auth::authenticate_app;
 use crate::pipeline::generate::{generate_pipeline, filter_steps, generate_kubernetes_pipeline};
 use log::info;
 use k8s_openapi::api::core::v1::Pod;
+use std::env;
+use chrono::Utc;
 
 use kube::{
   api::{Api, Meta, PostParams},
@@ -26,7 +28,11 @@ pub async fn handle_check_suite_request(github_webhook_request: GithubCheckSuite
 
 
 async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Result<(), Box<dyn std::error::Error>> {
-  let github_jwt_token = authenticate_app()?;
+  let github_private_key = env::var("GITHUB_APPLICATION_PRIVATE_KEY")?;
+  let application_id = env::var("APPLICATION_ID")?;
+  let now = Utc::now().timestamp();
+
+  let github_jwt_token = authenticate_app(&github_private_key, &application_id, now)?;
 
   let github_authorisation_client = GithubAuthorisationClient {
       github_jwt_token: github_jwt_token,

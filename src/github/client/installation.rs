@@ -126,11 +126,11 @@ impl GithubInstallationClient {
             .await?;
 
         match response.status() {
-            StatusCode::OK => Ok(Some(response
-                                    .text_with_charset("utf-8")
-                                    .await?)),
-            StatusCode::NO_CONTENT => Ok(None),
-            _ => Err("Error!".into())
+            StatusCode::OK          => Ok(Some(response
+                                        .text_with_charset("utf-8")
+                                        .await?)),
+            StatusCode::NOT_FOUND   => Ok(None),
+            _                       => Err("Error!".into())
         }
     }
 }
