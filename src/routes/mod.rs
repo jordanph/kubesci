@@ -72,13 +72,13 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    async fn test_route(_check_suite_request: GithubCheckSuiteRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
+    async fn check_suite_test_handler(_check_suite_request: GithubCheckSuiteRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
         Ok(warp::reply())
     }
 
     #[tokio::test]
     async fn should_respond_to_check_suite_request() {
-        let route = check_suite_route().and_then(test_route);
+        let route = check_suite_route().and_then(check_suite_test_handler);
 
         let body = json!({
             "action": "complete",
@@ -105,8 +105,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_respond_with_user_error_if_check_suite_request_not_in_body() {
-        let route = check_suite_route().and_then(test_route);
+    async fn should_respond_with_bad_request_if_check_suite_request_not_in_body() {
+        let route = check_suite_route().and_then(check_suite_test_handler);
 
         let response = warp::test::request()
             .method("POST")
@@ -118,8 +118,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_respond_with_user_error_if_no_check_suite_header() {
-        let route = check_suite_route().and_then(test_route);
+    async fn should_respond_with_bad_request_if_no_check_suite_header() {
+        let route = check_suite_route().and_then(check_suite_test_handler);
 
         let body = json!({
             "action": "complete",
@@ -142,5 +142,66 @@ mod tests {
             .reply(&route).await;
 
         assert_eq!(response.status(), 400)
+    }
+
+    async fn check_run_test_handler(_installation_id: u32, _check_run_request: CompleteCheckRunRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
+        Ok(warp::reply())
+    }
+
+    #[tokio::test]
+    async fn should_respond_to_check_run_request() {
+        let route = update_check_run_route().and_then(check_run_test_handler);
+
+        let body = json!({
+            "name": "some-test",
+            "repo_name": "test-repo",
+            "check_run_id": 1234,
+            "status": "running",
+            "started_at": "12/03/2020T00:00:00Z",
+            "logs": "this is a log"
+        });
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/update-check-run/123")
+            .header("X-GitHub-Event", "check_suite")
+            .json(&body)
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 200)
+    }
+
+    #[tokio::test]
+    async fn should_respond_with_bad_request_if_check_run_request_not_in_body() {
+        let route = update_check_run_route().and_then(check_run_test_handler);
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/update-check-run/123")
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 400)
+    }
+
+    #[tokio::test]
+    async fn should_respond_with_not_found_if_installation_id_not_passed_as_param() {
+        let route = update_check_run_route().and_then(check_run_test_handler);
+
+        let body = json!({
+            "name": "some-test",
+            "repo_name": "test-repo",
+            "check_run_id": 1234,
+            "status": "running",
+            "started_at": "12/03/2020T00:00:00Z",
+            "logs": "this is a log"
+        });
+
+        let response = warp::test::request()
+            .method("POST")
+            .path("/update-check-run")
+            .json(&body)
+            .reply(&route).await;
+
+        assert_eq!(response.status(), 404)
     }
 }
