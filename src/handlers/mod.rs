@@ -3,6 +3,9 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use serde_derive::Serialize;
 use chrono::{DateTime, Utc};
 
+pub mod check_suite;
+pub mod check_run;
+
 use kube::{
   api::{Api, ListParams},
   Client,

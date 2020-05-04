@@ -2,7 +2,7 @@ use serde_derive::{Serialize,Deserialize};
 use reqwest::header::{ACCEPT, USER_AGENT};
 use warp::http::StatusCode;
 use log::info;
-use crate::CompleteCheckRunRequest;
+use crate::routes::CompleteCheckRunRequest;
 
 #[derive(Serialize)]
 struct CreateCheckRunRequest {
@@ -112,7 +112,7 @@ impl GithubInstallationClient {
         } 
     }
 
-    pub async fn get_pipeline_file(&self, github_commit_sha: &String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn get_pipeline_file(&self, github_commit_sha: &String) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/contents/.kubes-cd/pipeline.yml?ref={}", self.base_url, self.repository_name, github_commit_sha);
 
         info!("Downloading the steps to run...");
@@ -123,12 +123,14 @@ impl GithubInstallationClient {
             .header(ACCEPT, "application/vnd.github.VERSION.raw")
             .header(USER_AGENT, "my-test-app")
             .send()
-            .await?
-            .text_with_charset("utf-8")
             .await?;
 
-        info!("Got the pipeline file {}", response);
-
-        return Ok(response);
+        match response.status() {
+            StatusCode::OK => Ok(Some(response
+                                    .text_with_charset("utf-8")
+                                    .await?)),
+            StatusCode::NO_CONTENT => Ok(None),
+            _ => Err("Error!".into())
+        }
     }
 }
