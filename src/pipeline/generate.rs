@@ -196,10 +196,8 @@ pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &St
     return Ok(pod_deployment_config);
 }
 
-pub fn generate_pipeline(raw_pipeline: &String) -> Result<RawPipeline, Box<dyn std::error::Error>> {
-    let yaml_steps: RawPipeline = serde_yaml::from_str(&raw_pipeline)?;
-
-    return Ok(yaml_steps);
+pub fn generate_pipeline(raw_pipeline: &String) -> Result<RawPipeline, serde_yaml::Error> {
+    serde_yaml::from_str(&raw_pipeline)
 }
 
 fn skip_step(step: &Step, github_branch_name: &String) -> bool {
