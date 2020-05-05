@@ -50,6 +50,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
   let maybe_raw_pipeline = github_installation_client.get_pipeline_file(&github_webhook_request.check_suite.head_sha).await?;
 
   if let Some(raw_pipeline) = maybe_raw_pipeline {
+    // TODO: Create a check run for parsing pipeline
     let pipeline = generate_pipeline(&raw_pipeline)?;
 
     let maybe_steps = filter_steps(&pipeline.steps, &github_webhook_request.check_suite.head_branch);

@@ -67,6 +67,22 @@ pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
     .boxed()
 }
 
+pub fn get_pipelines_route() -> BoxedFilter<()> {
+    warp::get()
+    .and(warp::path("pipelines"))
+    .boxed()
+}
+
+pub fn get_pipeline_route() -> BoxedFilter<(String, )> {
+    warp::path!("pipelines" / String)
+    .boxed()
+}
+
+pub fn get_pipeline_steps_route() -> BoxedFilter<(String, String)> {
+    warp::path!("pipelines" / String / String)
+    .boxed()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
