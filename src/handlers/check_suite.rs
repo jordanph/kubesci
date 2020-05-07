@@ -79,7 +79,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
             &github_webhook_request.check_suite.head_branch,
             &namespace,
             github_webhook_request.installation.id
-        )?;
+        );
   
         let client = Client::infer().await?;
   
