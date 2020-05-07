@@ -9,13 +9,13 @@ use std::collections::BTreeMap;
 use k8s_openapi::api::core::v1::{Pod, Container, PodSpec, Volume, EmptyDirVolumeSource, SecretVolumeSource};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheckRunId], github_head_sha: &String, repo_name: &String, branch: &String, namespace: &String, installation_id: u32) -> Pod {
-    let mut containers: Vec<Container> = steps_with_check_run_id.into_iter().map(|step_with_check_run_id| step_with_check_run_id.to_container()).collect();
+pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunId], github_head_sha: &str, repo_name: &str, branch: &str, namespace: &str, installation_id: u32) -> Pod {
+    let mut containers: Vec<Container> = steps_with_check_run_id.iter().map(|step_with_check_run_id| step_with_check_run_id.to_container()).collect();
 
     let side_car_container = PollingSidecarContainer {
-        installation_id: installation_id,
-        namespace: namespace,
-        repo_name: repo_name,
+        installation_id,
+        namespace,
+        repo_name,
         commit_sha: github_head_sha,
         steps_with_check_run_ids: &steps_with_check_run_id
     };
@@ -25,7 +25,7 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
     info!("Containers to deploy: {}", json!(containers));
 
     let volume_mount_names: Vec<String> = steps_with_check_run_id
-        .into_iter()
+        .iter()
         .map(|step_with_check_run_id| step_with_check_run_id.check_run_id.to_string())
         .collect();
 
@@ -72,7 +72,7 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
                             .collect();
 
     let container_repo_volume_mounts: Vec<Volume> = volume_mount_names.clone()
-        .into_iter().map(|check_run_id| Volume {
+        .iter().map(|check_run_id| Volume {
             aws_elastic_block_store: None,
             azure_disk: None,
             azure_file: None,
@@ -93,7 +93,7 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
             glusterfs: None,
             host_path: None,
             iscsi: None,
-            name: check_run_id.to_string(),
+            name: check_run_id.clone(),
             nfs: None,
             persistent_volume_claim: None,
             photon_persistent_disk: None,
@@ -150,7 +150,7 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
             active_deadline_seconds: None,
             affinity: None,
             automount_service_account_token: None,
-            containers: containers,
+            containers,
             dns_config: None,
             dns_policy: None,
             enable_service_links: None,
@@ -184,5 +184,5 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
 
     info!("Pod configuration to deploy: {}", json!(pod_deployment_config));
 
-    return pod_deployment_config;
+    pod_deployment_config
 }

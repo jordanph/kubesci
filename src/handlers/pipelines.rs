@@ -31,7 +31,7 @@ pub async fn handle_get_pipelines() -> Result<impl warp::Reply, Infallible> {
 
 async fn get_pipelines() -> Result<serde_json::value::Value, Box<dyn std::error::Error>> {
   let client = Client::infer().await?;
-  let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+  let namespace = std::env::var("NAMESPACE").unwrap_or_else(|_| "default".into());
 
   let pods_api: Api<Pod> = Api::namespaced(client, &namespace);
 
@@ -48,7 +48,7 @@ async fn get_pipelines() -> Result<serde_json::value::Value, Box<dyn std::error:
 
 fn group_by_repo(pods: &[Pod]) -> Vec<Pipeline> {
   pods
-    .into_iter()
+    .iter()
     .group_by(|&pod| pod.metadata.clone().unwrap().labels.unwrap().get("repo").unwrap().clone())
     .into_iter()
     .map(|(key, group)| {
@@ -58,7 +58,7 @@ fn group_by_repo(pods: &[Pod]) -> Vec<Pipeline> {
 
       Pipeline {
         name: key,
-        runs: runs
+        runs
       }
     })
     .collect()

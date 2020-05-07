@@ -23,7 +23,7 @@ async fn update_check_run(installation_id: u32, update_check_run_request: Comple
   let github_jwt_token = authenticate_app(&github_private_key, &application_id, now)?;
 
   let github_authorisation_client = GithubAuthorisationClient {
-      github_jwt_token: github_jwt_token,
+      github_jwt_token,
       base_url: "https://api.github.com".to_string(),
   };
 

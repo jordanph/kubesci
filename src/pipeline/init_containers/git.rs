@@ -2,22 +2,22 @@ use k8s_openapi::api::core::v1::{Container, VolumeMount, EnvVar};
 use crate::pipeline::KubernetesContainer;
 
 pub struct GitInitContainer<'a> {
-  pub clone_url: &'a String,
-  pub commit_sha: &'a String,
+  pub clone_url: &'a str,
+  pub commit_sha: &'a str,
   pub volume_mount_names: &'a Vec<String>
 }
 
 impl<'a> KubernetesContainer for GitInitContainer<'a> {
   fn to_container(&self) -> Container {
     let container_volumes = self.volume_mount_names
-      .into_iter()
+      .iter()
       .map(|volume_name| format!("/{}", volume_name))
       .collect::<Vec<String>>()
       .join(";");
 
 
     let volume_mounts = self.volume_mount_names
-      .into_iter()
+      .iter()
       .map(|volume_name| VolumeMount {
         mount_path: format!("/{}", volume_name),
         mount_propagation: None,

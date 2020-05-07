@@ -1,21 +1,21 @@
 use vec1::Vec1;
 use crate::pipeline::Step;
 
-pub fn filter<'a>(steps: &'a[Step], github_branch_name: &String) -> Option<Vec1<&'a Step>> {
+pub fn filter<'a>(steps: &'a[Step], github_branch_name: &str) -> Option<Vec1<&'a Step>> {
   let maybe_steps = steps
       .iter()
       .filter(|step| skip_step(step, github_branch_name))
       .collect::<Vec<_>>();
 
-  return Vec1::try_from_vec(maybe_steps).ok();
+  Vec1::try_from_vec(maybe_steps).ok()
 }
 
-fn skip_step(step: &Step, github_branch_name: &String) -> bool {
-  return step.branch.is_none() || step.branch == Some(github_branch_name.to_string()) || not_branch(step.branch.as_ref(), github_branch_name);
+fn skip_step(step: &Step, github_branch_name: &str) -> bool {
+  step.branch.is_none() || step.branch == Some(github_branch_name.to_string()) || not_branch(step.branch.as_ref(), github_branch_name)
 }
 
-fn not_branch(branch: Option<&String>, github_branch_name: &String) -> bool {
-  return branch.map(|branch| branch.chars().next() == Some('!') && branch[1..] != github_branch_name.to_string()).unwrap_or(false);
+fn not_branch(branch: Option<&String>, github_branch_name: &str) -> bool {
+  branch.map(|branch| branch.starts_with('!') && branch[1..] != *github_branch_name).unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -57,7 +57,7 @@ mod tests {
 
       let filtered_steps = filter(&steps, &branch.to_string()).unwrap();
 
-      let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+      let filter_step_names: Vec<String> = filtered_steps.iter().map(|step| step.name.clone()).collect();
 
       assert!(!filter_step_names.contains(&"step_that_does_not_match_branch".to_string()));
   }
@@ -90,7 +90,7 @@ mod tests {
 
       let filtered_steps = filter(&steps, &branch.to_string()).unwrap();
 
-      let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+      let filter_step_names: Vec<String> = filtered_steps.iter().map(|step| step.name.clone()).collect();
 
       assert!(filter_step_names.contains(&"step_that_matches_branch".to_string()));
   }
@@ -123,7 +123,7 @@ mod tests {
 
       let filtered_steps = filter(&steps, &branch.to_string()).unwrap();
 
-      let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+      let filter_step_names: Vec<String> = filtered_steps.iter().map(|step| step.name.clone()).collect();
 
       assert!(!filter_step_names.contains(&"step_with_exclamation_branch_that_matches_branch".to_string()));
   }
@@ -156,7 +156,7 @@ mod tests {
 
       let filtered_steps = filter(&steps, &branch.to_string()).unwrap();
 
-      let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+      let filter_step_names: Vec<String> = filtered_steps.iter().map(|step| step.name.clone()).collect();
 
       assert!(filter_step_names.contains(&"step_with_exclamation_branch_that_does_not_match_branch".to_string()));
   }

@@ -31,7 +31,7 @@ pub async fn handle_get_pipeline(pipeline_name: String) -> Result<impl warp::Rep
 
 async fn get_pipeline(pipeline_name: String) -> Result<serde_json::value::Value, Box<dyn std::error::Error>> {
   let client = Client::infer().await?;
-  let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+  let namespace = std::env::var("NAMESPACE").unwrap_or_else(|_| "default".into());
 
   let pods_api: Api<Pod> = Api::namespaced(client, &namespace);
 
@@ -50,7 +50,7 @@ async fn get_pipeline(pipeline_name: String) -> Result<serde_json::value::Value,
 
 fn group_by_branch(pods: &[Pod]) -> Vec<Pipeline> {
   pods
-    .into_iter()
+    .iter()
     .group_by(|&pod| pod.metadata.clone().unwrap().labels.unwrap().get("branch").unwrap().clone())
     .into_iter()
     .map(|(key, group)| {
@@ -60,7 +60,7 @@ fn group_by_branch(pods: &[Pod]) -> Vec<Pipeline> {
 
       Pipeline {
         name: key,
-        runs: runs
+        runs
       }
     })
     .collect()

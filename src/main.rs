@@ -46,8 +46,8 @@ async fn main() {
 
     let app_routes = check_suite_handler.or(update_check_run_handler).or(get_pipeline_steps_handler).or(get_pipeline_handler).or(get_pipelines_handler);
 
-    let address = std::env::var("SOCKET_ADDRESS").unwrap_or("127.0.0.1".to_string());
-    let port = std::env::var("PORT").unwrap_or("3030".to_string());
+    let address = std::env::var("SOCKET_ADDRESS").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3030".to_string());
 
     let socket_address: SocketAddr = format!("{}:{}", address, port).parse().expect("Unable to parse socket address");
 

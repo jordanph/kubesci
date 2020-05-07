@@ -19,7 +19,7 @@ pub fn authenticate_app(github_private_key: &str, application_id: &str, now: i64
 
     let token = encode(&Header::new(Algorithm::RS256), &claim, &EncodingKey::from_rsa_pem(github_private_key.as_bytes())?)?;
 
-    return Ok(token);
+    Ok(token)
 }
 
 #[cfg(test)]

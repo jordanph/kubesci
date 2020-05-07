@@ -38,7 +38,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
   let github_jwt_token = authenticate_app(&github_private_key, &application_id, now)?;
 
   let github_authorisation_client = GithubAuthorisationClient {
-      github_jwt_token: github_jwt_token,
+      github_jwt_token,
       base_url: "https://api.github.com".to_string(),
   };
 
@@ -70,7 +70,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
             });
         }
   
-        let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+        let namespace = std::env::var("NAMESPACE").unwrap_or_else(|_| "default".into());
   
         let pod_deployment = generate_kubernetes_pipeline(
             &steps_with_check_run_id,

@@ -87,26 +87,26 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             None => repo_mount
         };
 
-        let maybe_envs = self.step.env.clone().map(|envs| envs.into_iter().map(|env| match env {
+        let maybe_envs = self.step.env.clone().map(|envs| envs.iter().map(|env| match env {
             Environment::BasicEnv {
                 name, value
             } => EnvVar {
-                name: name,
-                value: Some(value),
+                name: name.clone(),
+                value: Some(value.clone()),
                 value_from: None
             },
             Environment::KubernetesSecretEnv {
                 name, value_from
             } => EnvVar {
-                name: name,
+                name: name.clone(),
                 value: None,
                 value_from: Some(EnvVarSource {
                     config_map_key_ref: None,
                     field_ref: None,
                     resource_field_ref: None,
                     secret_key_ref: Some(SecretKeySelector {
-                        name: Some(value_from.secret_key_ref.name),
-                        key: value_from.secret_key_ref.key,
+                        name: Some(value_from.secret_key_ref.name.clone()),
+                        key: value_from.secret_key_ref.key.clone(),
                         optional: None
                     })
                 })

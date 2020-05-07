@@ -40,14 +40,14 @@ pub struct ErrorMessage {
 
 pub fn extract_runs(pod: Vec<&Pod>) -> Vec<Run> {
   pod
-    .into_iter()
+    .iter()
     .map(|pod| {
       let status = pod.status.clone().unwrap().phase;
       let commit = pod.metadata.clone().unwrap().labels.unwrap().get("commit").unwrap().clone();
 
       Run {
-        status: status,
-        commit: commit
+        status,
+        commit
       }
     })
     .collect()

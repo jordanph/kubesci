@@ -4,9 +4,9 @@ use crate::pipeline::StepWithCheckRunId;
 
 pub struct PollingSidecarContainer<'a> {
   pub installation_id: u32,
-  pub namespace: &'a String,
-  pub repo_name: &'a String,
-  pub commit_sha: &'a String,
+  pub namespace: &'a str,
+  pub repo_name: &'a str,
+  pub commit_sha: &'a str,
   pub steps_with_check_run_ids: &'a [StepWithCheckRunId<'a>]
 }
 

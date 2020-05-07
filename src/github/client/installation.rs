@@ -49,7 +49,7 @@ pub struct CreateCheckRunResponse {
 }
 
 impl GithubInstallationClient {
-    pub async fn create_check_run(&self, name: &String, head_sha: &String) -> Result<CreateCheckRunResponse, Box<dyn std::error::Error>> {
+    pub async fn create_check_run(&self, name: &str, head_sha: &str) -> Result<CreateCheckRunResponse, Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/check-runs", self.base_url, self.repository_name);
 
         let create_check_run_request = CreateCheckRunRequest {
@@ -112,7 +112,7 @@ impl GithubInstallationClient {
         } 
     }
 
-    pub async fn get_pipeline_file(&self, github_commit_sha: &String) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    pub async fn get_pipeline_file(&self, github_commit_sha: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let request_url = format!("{}/repos/{}/contents/.kubes-cd/pipeline.yml?ref={}", self.base_url, self.repository_name, github_commit_sha);
 
         info!("Downloading the steps to run...");

@@ -31,7 +31,7 @@ pub async fn handle_get_steps(pipeline_name: String, commit: String) -> Result<i
 
 async fn get_pipeline_steps(pipeline_name: String, commit: String) -> Result<serde_json::value::Value, Box<dyn std::error::Error>> {
   let client = Client::infer().await?;
-  let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
+  let namespace = std::env::var("NAMESPACE").unwrap_or_else(|_| "default".into());
 
   let pods_api: Api<Pod> = Api::namespaced(client, &namespace);
 
@@ -50,25 +50,25 @@ async fn get_pipeline_steps(pipeline_name: String, commit: String) -> Result<ser
 
 fn extract_steps(pod: &Pod) -> Vec<Step> {
   pod.status.clone().unwrap().container_statuses.unwrap()
-    .into_iter()
+    .iter()
     .map(|container| {
-      let name = container.name;
-      let state = container.state.unwrap();
+      let name = container.name.clone();
+      let state = container.state.clone().unwrap();
 
       if let Some(running) = state.running {
         let Time(started_at) = running.started_at.unwrap();
 
-        return Step {
-          name: name,
+        Step {
+          name,
           status: Some(StepStatus {
             started_at: Some(started_at),
             finished_at: None,
             status: "Running".to_string()
           })
         }
-      } else if let Some(_) = state.waiting {
-        return Step {
-          name: name,
+      } else if state.waiting.is_some() {
+        Step {
+          name,
           status: Some(StepStatus {
             started_at: None,
             finished_at: None,
@@ -85,17 +85,17 @@ fn extract_steps(pod: &Pod) -> Vec<Step> {
           "Failed".to_string()
         };
 
-        return Step {
-          name: name,
+        Step {
+          name,
           status: Some(StepStatus {
             started_at: Some(started_at),
             finished_at: Some(finished_at),
-            status: status
+            status
           })
         }
       } else {
-        return Step {
-          name: name,
+        Step {
+          name,
           status: None
         }
       }
