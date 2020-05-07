@@ -102,8 +102,144 @@ fn not_branch(branch: Option<&String>, github_branch_name: &String) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
     fn should_return_none_if_no_steps_to_run() {
-        assert_eq!(0,0);
+        let empty_steps = &Vec::new();
+        let maybe_steps = filter_steps(empty_steps, &"some_branch".to_string());
+
+        assert!(maybe_steps.is_none());
+    }
+
+    #[test]
+    fn should_filter_steps_with_defined_branch_that_does_not_match_current() {
+        let branch = "master";
+
+        let step_that_matches_branch = Step {
+            name: "step_that_matches_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some(branch.to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let step_that_does_not_match_branch = Step {
+            name: "step_that_does_not_match_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some("some_other_branch".to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let steps = vec![step_that_does_not_match_branch, step_that_matches_branch];
+
+        let filtered_steps = filter_steps(&steps, &branch.to_string()).unwrap();
+
+        let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+
+        assert!(!filter_step_names.contains(&"step_that_does_not_match_branch".to_string()));
+    }
+
+    #[test]
+    fn should_not_filter_steps_with_defined_branch_that_does_not_match_current() {
+        let branch = "master";
+
+        let step_that_matches_branch = Step {
+            name: "step_that_matches_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some(branch.to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let step_that_does_not_match_branch = Step {
+            name: "step_that_does_not_match_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some("some_other_branch".to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let steps = vec![step_that_does_not_match_branch, step_that_matches_branch];
+
+        let filtered_steps = filter_steps(&steps, &branch.to_string()).unwrap();
+
+        let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+
+        assert!(filter_step_names.contains(&"step_that_matches_branch".to_string()));
+    }
+
+    #[test]
+    fn should_filter_steps_with_defined_exclamation_branch_that_matches_branch() {
+        let branch = "master";
+
+        let step_with_exclamation_branch_that_matches_branch = Step {
+            name: "step_with_exclamation_branch_that_matches_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some(format!("!{}", branch)),
+            env: None,
+            mount_secret: None
+        };
+
+        let step_with_exclamation_branch_that_does_not_match_branch = Step {
+            name: "step_with_exclamation_branch_that_does_not_match_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some("!some_other_branch".to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let steps = vec![step_with_exclamation_branch_that_matches_branch, step_with_exclamation_branch_that_does_not_match_branch];
+
+        let filtered_steps = filter_steps(&steps, &branch.to_string()).unwrap();
+
+        let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+
+        assert!(!filter_step_names.contains(&"step_with_exclamation_branch_that_matches_branch".to_string()));
+    }
+
+    #[test]
+    fn should_not_filter_steps_with_defined_exclamation_branch_that_do_not_match_branch() {
+        let branch = "master";
+
+        let step_with_exclamation_branch_that_matches_branch = Step {
+            name: "step_with_exclamation_branch_that_matches_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some(format!("!{}", branch)),
+            env: None,
+            mount_secret: None
+        };
+
+        let step_with_exclamation_branch_that_does_not_match_branch = Step {
+            name: "step_with_exclamation_branch_that_does_not_match_branch".to_string(),
+            image: "some_image".to_string(),
+            commands: None,
+            args: None,
+            branch: Some("!some_other_branch".to_string()),
+            env: None,
+            mount_secret: None
+        };
+
+        let steps = vec![step_with_exclamation_branch_that_matches_branch, step_with_exclamation_branch_that_does_not_match_branch];
+
+        let filtered_steps = filter_steps(&steps, &branch.to_string()).unwrap();
+
+        let filter_step_names: Vec<String> = filtered_steps.into_iter().map(|step| step.name.clone()).collect();
+
+        assert!(filter_step_names.contains(&"step_with_exclamation_branch_that_does_not_match_branch".to_string()));
     }
 }
