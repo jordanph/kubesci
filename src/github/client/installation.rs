@@ -45,7 +45,7 @@ pub struct GithubInstallationClient {
 
 #[derive(Deserialize, Debug)]
 pub struct CreateCheckRunResponse {
-    pub id: i32,
+    pub id: u32,
 }
 
 impl GithubInstallationClient {

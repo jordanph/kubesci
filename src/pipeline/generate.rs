@@ -1,217 +1,188 @@
 use serde_json::json;
-use serde_derive::{Deserialize, Serialize};
 use log::info;
-use vec1::Vec1;
+use crate::pipeline::init_containers::git::GitInitContainer;
+use crate::pipeline::sidecar_containers::PollingSidecarContainer;
+use crate::pipeline::KubernetesContainer;
+use crate::pipeline::StepWithCheckRunId;
+use std::collections::BTreeMap;
 
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, Container, PodSpec, Volume, EmptyDirVolumeSource, SecretVolumeSource};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-#[derive(Debug, Deserialize, Serialize)]
-struct SecretKeyRef {
-    name: String,
-    key: String,
-}
+pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheckRunId], github_head_sha: &String, repo_name: &String, branch: &String, namespace: &String, installation_id: u32) -> Pod {
+    let mut containers: Vec<Container> = steps_with_check_run_id.into_iter().map(|step_with_check_run_id| step_with_check_run_id.to_container()).collect();
 
-#[derive(Debug, Deserialize, Serialize)]
-struct ValueFrom {
-    #[serde(rename="secretKeyRef")]
-    secret_key_ref: SecretKeyRef
-}
+    let side_car_container = PollingSidecarContainer {
+        installation_id: installation_id,
+        namespace: namespace,
+        repo_name: repo_name,
+        commit_sha: github_head_sha,
+        steps_with_check_run_ids: &steps_with_check_run_id
+    };
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-enum Environment {
-    BasicEnv { name: String, value: String},
-    KubernetesSecretEnv {
-        name: String,
-        #[serde(rename="valueFrom")]
-        value_from: ValueFrom
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-struct MountSecret {
-    name: String,
-    #[serde(rename="mountPath")]
-    mount_path: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Step {
-    pub name: String,
-    image: String,
-    commands: Option<std::vec::Vec<String>>,
-    args: Option<std::vec::Vec<String>>,
-    branch: Option<String>,
-    env: Option<Vec1<Environment>>,
-    #[serde(rename="mountSecret")]
-    mount_secret: Option<Vec1<MountSecret>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RawPipeline {
-    pub steps: Vec1<Step>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Pipeline {
-    pub steps: Vec1<Step>,
-}
-
-pub fn filter_steps<'a>(steps: &'a[Step], github_branch_name: &String) -> Option<Vec1<&'a Step>> {
-    let maybe_steps = steps
-        .iter()
-        .filter(|step| skip_step(step, github_branch_name))
-        .collect::<Vec<_>>();
-
-    return Vec1::try_from_vec(maybe_steps).ok();
-}
-
-pub fn generate_kubernetes_pipeline<'a>(steps: &[&'a Step], github_head_sha: &String, repo_name: &String, branch: &String, step_check_id_map: Vec<(String, i32)>, namespace: &String, installation_id: u32) -> Result<Pod, Box<dyn std::error::Error>> {
-    let mut containers: Vec<serde_json::value::Value> = steps
-            .iter()
-            .map(|step| {
-                let env = json!(step.env);
-
-                let repo_mount = vec![MountSecret {
-                    name: "repo".to_string(),
-                    mount_path: "/app".to_string(),
-                }];
-
-                let mount_secrets_ref  = step.mount_secret.as_ref();
-
-                let mount_secrets: Vec<MountSecret> = match mount_secrets_ref {
-                    Some(mount_secrets) => [mount_secrets.to_vec(), repo_mount].concat(),
-                    None => repo_mount
-                };
-
-                return json!({
-                    "name": step.name.replace(" ", "-").to_lowercase(),
-                    "image": step.image,
-                    "command": step.commands,
-                    "args": step.args,
-                    "workingDir": "/app",
-                    "volumeMounts": json!(mount_secrets),
-                    "env": env
-                });
-            }).collect();
-
-    let step_check_id_map_env: String = step_check_id_map
-        .iter()
-        .map(|map| format!("{}={}", map.0, map.1))
-        .collect::<Vec<String>>()
-        .join(",");
-
-    // Add the kubes side car container
-    containers.push(json!({
-        "name": "kubes-cd-sidecar",
-        "image": "jordanph/kubes-sidecar",
-        "env": [
-            {
-                "name": "CHECK_RUN_POD_NAME_MAP",
-                "value": step_check_id_map_env
-            },
-            {
-                "name": "POD_NAME",
-                "value": github_head_sha
-            },
-            {
-                "name": "RUST_LOG",
-                "value": "debug"
-            },
-            {
-                "name": "INSTALLATION_ID",
-                "value": installation_id.to_string()
-            },
-            {
-                "name": "KUBES_CD_CONTROLLER_BASE_URL",
-                "value": "http://kubes-cd-controller"
-            },
-            {
-                "name": "NAMESPACE",
-                "value": namespace
-            },
-            {
-                "name": "REPO_NAME",
-                "value": repo_name
-            }
-        ]
-    }));
-
-    info!("Check run ids to step map {}", step_check_id_map_env);
-
+    containers.push(side_car_container.to_container());
+ 
     info!("Containers to deploy: {}", json!(containers));
 
-    let clone_url = format!("https://github.com/{}", repo_name);
+    let volume_mount_names: Vec<String> = steps_with_check_run_id
+        .into_iter()
+        .map(|step_with_check_run_id| step_with_check_run_id.check_run_id.to_string())
+        .collect();
 
-    let secret_mounts: std::vec::Vec<serde_json::value::Value> = steps
+    let secret_mounts: Vec<Volume> = steps_with_check_run_id
                             .iter()
-                            .filter_map(|step| step.mount_secret.as_ref())
+                            .filter_map(|step_with_check_run_id| step_with_check_run_id.step.mount_secret.as_ref())
                             .flatten()
-                            .map(|mount_secret| json!({ "name": mount_secret.name, "secret": { "secretName": mount_secret.name}}))
+                            .map(|mount_secret| Volume {
+                                aws_elastic_block_store: None,
+                                azure_disk: None,
+                                azure_file: None,
+                                cephfs: None,
+                                cinder: None,
+                                config_map: None,
+                                csi: None,
+                                downward_api: None,
+                                empty_dir: None,
+                                fc: None,
+                                flex_volume: None,
+                                flocker: None,
+                                gce_persistent_disk: None,
+                                git_repo: None,
+                                glusterfs: None,
+                                host_path: None,
+                                iscsi: None,
+                                name: mount_secret.name.to_string(),
+                                nfs: None,
+                                persistent_volume_claim: None,
+                                photon_persistent_disk: None,
+                                portworx_volume: None,
+                                projected: None,
+                                quobyte: None,
+                                rbd: None,
+                                scale_io: None,
+                                secret: Some(SecretVolumeSource {
+                                    default_mode: None,
+                                    items: None,
+                                    optional: Some(true),
+                                    secret_name: Some(mount_secret.name.to_string())
+                                }),
+                                storageos: None,
+                                vsphere_volume: None,
+                            })
                             .collect();
 
-    let repo_mount: serde_json::value::Value = json!({"name": "repo", "emptyDir": {}});
+    let container_repo_volume_mounts: Vec<Volume> = volume_mount_names.clone()
+        .into_iter().map(|check_run_id| Volume {
+            aws_elastic_block_store: None,
+            azure_disk: None,
+            azure_file: None,
+            cephfs: None,
+            cinder: None,
+            config_map: None,
+            csi: None,
+            downward_api: None,
+            empty_dir: Some(EmptyDirVolumeSource {
+                medium: None,
+                size_limit: None
+            }),
+            fc: None,
+            flex_volume: None,
+            flocker: None,
+            gce_persistent_disk: None,
+            git_repo: None,
+            glusterfs: None,
+            host_path: None,
+            iscsi: None,
+            name: check_run_id.to_string(),
+            nfs: None,
+            persistent_volume_claim: None,
+            photon_persistent_disk: None,
+            portworx_volume: None,
+            projected: None,
+            quobyte: None,
+            rbd: None,
+            scale_io: None,
+            secret: None,
+            storageos: None,
+            vsphere_volume: None,
+        })
+        .collect();
 
-    let volumes = [secret_mounts, [repo_mount].to_vec()].concat();
+    let volumes = [secret_mounts, container_repo_volume_mounts].concat();
 
     info!("Volumes to deploy: {}", json!(volumes));
 
     let short_commit = &github_head_sha[0..7];
 
-    let pod_deployment_config: Pod = serde_json::from_value(json!({
-        "apiVersion": "v1",
-        "kind": "Pod",
-        "metadata": {
-            "name": github_head_sha,
-            "labels": {
-                "repo": repo_name.replace("/", "."),
-                "branch": branch,
-                "commit": short_commit,
-                "app": "kubes-cd-test"
-            },
-            "namespace": namespace
-        },
-        "spec": {
-            "initContainers": [{
-                "name": "cd-setup",
-                "image": "alpine/git",
-                "command": ["/bin/sh", "-c"],
-                "args": [format!("git clone {} . && git checkout {}", clone_url, github_head_sha)],
-                "workingDir": "/app",
-                "volumeMounts": [{
-                    "name": "repo",
-                    "mountPath": "/app",
-                }]
-            }],
-            "serviceAccount": "kubes-cd",
-            "serviceAccountName": "kubes-cd",
-            "containers": containers,
-            "restartPolicy": "Never",
-            "volumes": volumes
-        }
-    }))?;
+    let git_checkout_init_container = GitInitContainer {
+        clone_url: repo_name,
+        commit_sha: github_head_sha,
+        volume_mount_names: &volume_mount_names
+    };
+
+    let mut pod_labels = BTreeMap::new();
+    pod_labels.insert("repo".to_string(), repo_name.replace("/", "."));
+    pod_labels.insert("branch".to_string(), branch.to_string());
+    pod_labels.insert("commit".to_string(), short_commit.to_string());
+    pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
+
+    let pod_deployment_config = Pod {
+        metadata: Some(ObjectMeta {
+            annotations: None,
+            cluster_name: None,
+            creation_timestamp: None,
+            deletion_grace_period_seconds: None,
+            deletion_timestamp: None,
+            finalizers: None,
+            generate_name: None,
+            generation: None,
+            initializers: None,
+            labels: Some(pod_labels),
+            managed_fields: None,
+            name: Some(github_head_sha.to_string()),
+            namespace: Some(namespace.to_string()),
+            owner_references: None,
+            resource_version: None,
+            self_link: None,
+            uid: None
+        }),
+        spec: Some(PodSpec {
+            active_deadline_seconds: None,
+            affinity: None,
+            automount_service_account_token: None,
+            containers: containers,
+            dns_config: None,
+            dns_policy: None,
+            enable_service_links: None,
+            host_aliases: None,
+            host_ipc: None,
+            host_network: None,
+            host_pid: None,
+            hostname: None,
+            image_pull_secrets: None,
+            init_containers: Some(vec!(git_checkout_init_container.to_container())),
+            node_name: None,
+            node_selector: None,
+            preemption_policy: None,
+            priority: None,
+            priority_class_name: None,
+            readiness_gates: None,
+            restart_policy: Some("Never".to_string()),
+            runtime_class_name: None,
+            scheduler_name: None,
+            security_context: None,
+            service_account: Some("kubes-cd".to_string()),
+            service_account_name: Some("kubes-cd".to_string()),
+            share_process_namespace: None,
+            subdomain: None,
+            termination_grace_period_seconds: None,
+            tolerations: None,
+            volumes: Some(volumes),
+        }),
+        status: None
+    };
 
     info!("Pod configuration to deploy: {}", json!(pod_deployment_config));
 
-    return Ok(pod_deployment_config);
-}
-
-pub fn generate_pipeline(raw_pipeline: &String) -> Result<RawPipeline, serde_yaml::Error> {
-    serde_yaml::from_str(&raw_pipeline)
-}
-
-fn skip_step(step: &Step, github_branch_name: &String) -> bool {
-    return step.branch.is_none() || step.branch == Some(github_branch_name.to_string()) || not_branch(step.branch.as_ref(), github_branch_name);
-}
-
-fn not_branch(branch: Option<&String>, github_branch_name: &String) -> bool {
-    return branch.map(|branch| branch.chars().next() == Some('!') && branch[1..] != github_branch_name.to_string()).unwrap_or(false);
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn should_return_none_if_no_steps_to_run() {
-        assert_eq!(0,0);
-    }
+    return pod_deployment_config;
 }
