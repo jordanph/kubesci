@@ -4,7 +4,8 @@ use std::convert::Infallible;
 use crate::github::client::auth::GithubAuthorisationClient;
 use crate::github::client::installation::GithubInstallationClient;
 use crate::github::auth::authenticate_app;
-use crate::pipeline::generate::{generate_pipeline, filter_steps, generate_kubernetes_pipeline};
+use crate::pipeline::generate::{generate_pipeline, generate_kubernetes_pipeline};
+use crate::pipeline::steps_filter::filter;
 use log::info;
 use k8s_openapi::api::core::v1::Pod;
 use std::env;
@@ -54,7 +55,7 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
     // TODO: Create a check run for parsing pipeline
     let pipeline = generate_pipeline(&raw_pipeline)?;
 
-    let maybe_steps = filter_steps(&pipeline.steps, &github_webhook_request.check_suite.head_branch);
+    let maybe_steps = filter(&pipeline.steps, &github_webhook_request.check_suite.head_branch);
   
     if let Some(steps) = maybe_steps {
         let mut steps_with_check_run_id: Vec<StepWithCheckRunId> = Vec::new();

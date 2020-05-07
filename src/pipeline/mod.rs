@@ -1,6 +1,7 @@
 pub mod generate;
 pub mod init_containers;
 pub mod sidecar_containers;
+pub mod steps_filter;
 
 use serde_derive::{Deserialize, Serialize};
 use vec1::Vec1;
