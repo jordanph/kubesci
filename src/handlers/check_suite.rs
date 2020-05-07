@@ -9,6 +9,7 @@ use log::info;
 use k8s_openapi::api::core::v1::Pod;
 use std::env;
 use chrono::Utc;
+use crate::pipeline::StepWithCheckRunId;
 
 use kube::{
   api::{Api, Meta, PostParams},
@@ -56,22 +57,24 @@ async fn create_check_run(github_webhook_request: GithubCheckSuiteRequest) -> Re
     let maybe_steps = filter_steps(&pipeline.steps, &github_webhook_request.check_suite.head_branch);
   
     if let Some(steps) = maybe_steps {
-        let mut check_run_ids: Vec<(String, i32)> = Vec::new();
+        let mut steps_with_check_run_id: Vec<StepWithCheckRunId> = Vec::new();
   
         for step in &steps {
             let checkrun_response = github_installation_client.create_check_run(&step.name, &github_webhook_request.check_suite.head_sha).await?;
   
-            check_run_ids.push((step.name.replace(" ", "-").to_lowercase(), checkrun_response.id));
+            steps_with_check_run_id.push(StepWithCheckRunId {
+                step: *step,
+                check_run_id: checkrun_response.id
+            });
         }
   
         let namespace = std::env::var("NAMESPACE").unwrap_or("default".into());
   
         let pod_deployment = generate_kubernetes_pipeline(
-            &steps,
+            &steps_with_check_run_id,
             &github_webhook_request.check_suite.head_sha,
             &github_webhook_request.repository.full_name,
             &github_webhook_request.check_suite.head_branch,
-            check_run_ids,
             &namespace,
             github_webhook_request.installation.id
         )?;
