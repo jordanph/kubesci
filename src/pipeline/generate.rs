@@ -3,7 +3,7 @@ use log::info;
 use crate::pipeline::init_containers::git::GitInitContainer;
 use crate::pipeline::sidecar_containers::PollingSidecarContainer;
 use crate::pipeline::KubernetesContainer;
-use crate::pipeline::{StepWithCheckRunId, RawPipeline};
+use crate::pipeline::StepWithCheckRunId;
 
 use k8s_openapi::api::core::v1::{Pod, Container};
 
@@ -76,8 +76,4 @@ pub fn generate_kubernetes_pipeline<'a>(steps_with_check_run_id: &[StepWithCheck
     info!("Pod configuration to deploy: {}", json!(pod_deployment_config));
 
     return Ok(pod_deployment_config);
-}
-
-pub fn generate_pipeline(raw_pipeline: &String) -> Result<RawPipeline, serde_yaml::Error> {
-    serde_yaml::from_str(&raw_pipeline)
 }
