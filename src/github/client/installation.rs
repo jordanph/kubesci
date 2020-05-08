@@ -1,14 +1,14 @@
-use serde_derive::{Serialize,Deserialize};
-use reqwest::header::{ACCEPT, USER_AGENT};
-use warp::http::StatusCode;
-use log::info;
 use crate::routes::CompleteCheckRunRequest;
+use log::info;
+use reqwest::header::{ACCEPT, USER_AGENT};
+use serde_derive::{Deserialize, Serialize};
+use warp::http::StatusCode;
 
 #[derive(Serialize)]
 struct CreateCheckRunRequest {
     accept: String,
     name: String,
-    head_sha: String
+    head_sha: String,
 }
 
 #[derive(Serialize)]
@@ -49,8 +49,15 @@ pub struct CreateCheckRunResponse {
 }
 
 impl GithubInstallationClient {
-    pub async fn create_check_run(&self, name: &str, head_sha: &str) -> Result<CreateCheckRunResponse, Box<dyn std::error::Error>> {
-        let request_url = format!("{}/repos/{}/check-runs", self.base_url, self.repository_name);
+    pub async fn create_check_run(
+        &self,
+        name: &str,
+        head_sha: &str,
+    ) -> Result<CreateCheckRunResponse, Box<dyn std::error::Error>> {
+        let request_url = format!(
+            "{}/repos/{}/check-runs",
+            self.base_url, self.repository_name
+        );
 
         let create_check_run_request = CreateCheckRunRequest {
             accept: "application/vnd.github.antiope-preview+json".to_string(),
@@ -74,10 +81,16 @@ impl GithubInstallationClient {
         Ok(check_run_response)
     }
 
-    pub async fn set_check_run_complete(&self, update_check_run_request: CompleteCheckRunRequest) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn set_check_run_complete(
+        &self,
+        update_check_run_request: CompleteCheckRunRequest,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let name = update_check_run_request.name.clone();
-        
-        let request_url = format!("{}/repos/{}/check-runs/{}", self.base_url, self.repository_name, update_check_run_request.check_run_id);
+
+        let request_url = format!(
+            "{}/repos/{}/check-runs/{}",
+            self.base_url, self.repository_name, update_check_run_request.check_run_id
+        );
 
         let update_check_run_request = CompletedCheckRunRequest {
             accept: "application/vnd.github.antiope-preview+json".to_string(),
@@ -93,7 +106,10 @@ impl GithubInstallationClient {
             }),
         };
 
-        info!("Setting the check run to complete with request: {:?}", update_check_run_request);
+        info!(
+            "Setting the check run to complete with request: {:?}",
+            update_check_run_request
+        );
 
         let response = reqwest::Client::new()
             .patch(&request_url)
@@ -109,11 +125,17 @@ impl GithubInstallationClient {
         match response.status() {
             StatusCode::OK => Ok(()),
             other => Err(other.to_string().into()),
-        } 
+        }
     }
 
-    pub async fn get_pipeline_file(&self, github_commit_sha: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
-        let request_url = format!("{}/repos/{}/contents/.kubes-cd/pipeline.yml?ref={}", self.base_url, self.repository_name, github_commit_sha);
+    pub async fn get_pipeline_file(
+        &self,
+        github_commit_sha: &str,
+    ) -> Result<Option<String>, Box<dyn std::error::Error>> {
+        let request_url = format!(
+            "{}/repos/{}/contents/.kubes-cd/pipeline.yml?ref={}",
+            self.base_url, self.repository_name, github_commit_sha
+        );
 
         info!("Downloading the steps to run...");
 
@@ -126,11 +148,9 @@ impl GithubInstallationClient {
             .await?;
 
         match response.status() {
-            StatusCode::OK          => Ok(Some(response
-                                        .text_with_charset("utf-8")
-                                        .await?)),
-            StatusCode::NOT_FOUND   => Ok(None),
-            _                       => Err("Error!".into())
+            StatusCode::OK => Ok(Some(response.text_with_charset("utf-8").await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            _ => Err("Error!".into()),
         }
     }
 }

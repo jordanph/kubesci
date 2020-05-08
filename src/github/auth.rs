@@ -5,19 +5,27 @@ use serde_derive::{Deserialize, Serialize};
 struct Claims<'a> {
     exp: i64,
     iat: i64,
-    iss: &'a str
+    iss: &'a str,
 }
 
-pub fn authenticate_app(github_private_key: &str, application_id: &str, now: i64) -> Result<std::string::String, Box<dyn std::error::Error>> {
+pub fn authenticate_app(
+    github_private_key: &str,
+    application_id: &str,
+    now: i64,
+) -> Result<std::string::String, Box<dyn std::error::Error>> {
     let ten_minutes_from_now = now + (10 * 60);
 
     let claim = Claims {
         exp: ten_minutes_from_now,
         iat: now,
-        iss: application_id
+        iss: application_id,
     };
 
-    let token = encode(&Header::new(Algorithm::RS256), &claim, &EncodingKey::from_rsa_pem(github_private_key.as_bytes())?)?;
+    let token = encode(
+        &Header::new(Algorithm::RS256),
+        &claim,
+        &EncodingKey::from_rsa_pem(github_private_key.as_bytes())?,
+    )?;
 
     Ok(token)
 }

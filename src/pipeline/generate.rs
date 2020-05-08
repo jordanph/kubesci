@@ -1,27 +1,39 @@
-use serde_json::json;
-use log::info;
 use crate::pipeline::init_containers::git::GitInitContainer;
 use crate::pipeline::sidecar_containers::PollingSidecarContainer;
 use crate::pipeline::KubernetesContainer;
 use crate::pipeline::StepWithCheckRunId;
+use log::info;
+use serde_json::json;
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::core::v1::{Pod, Container, PodSpec, Volume, EmptyDirVolumeSource, SecretVolumeSource};
+use k8s_openapi::api::core::v1::{
+    Container, EmptyDirVolumeSource, Pod, PodSpec, SecretVolumeSource, Volume,
+};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunId], github_head_sha: &str, repo_name: &str, branch: &str, namespace: &str, installation_id: u32) -> Pod {
-    let mut containers: Vec<Container> = steps_with_check_run_id.iter().map(|step_with_check_run_id| step_with_check_run_id.to_container()).collect();
+pub fn generate_kubernetes_pipeline(
+    steps_with_check_run_id: &[StepWithCheckRunId],
+    github_head_sha: &str,
+    repo_name: &str,
+    branch: &str,
+    namespace: &str,
+    installation_id: u32,
+) -> Pod {
+    let mut containers: Vec<Container> = steps_with_check_run_id
+        .iter()
+        .map(|step_with_check_run_id| step_with_check_run_id.to_container())
+        .collect();
 
     let side_car_container = PollingSidecarContainer {
         installation_id,
         namespace,
         repo_name,
         commit_sha: github_head_sha,
-        steps_with_check_run_ids: &steps_with_check_run_id
+        steps_with_check_run_ids: &steps_with_check_run_id,
     };
 
     containers.push(side_car_container.to_container());
- 
+
     info!("Containers to deploy: {}", json!(containers));
 
     let volume_mount_names: Vec<String> = steps_with_check_run_id
@@ -30,49 +42,51 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
         .collect();
 
     let secret_mounts: Vec<Volume> = steps_with_check_run_id
-                            .iter()
-                            .filter_map(|step_with_check_run_id| step_with_check_run_id.step.mount_secret.as_ref())
-                            .flatten()
-                            .map(|mount_secret| Volume {
-                                aws_elastic_block_store: None,
-                                azure_disk: None,
-                                azure_file: None,
-                                cephfs: None,
-                                cinder: None,
-                                config_map: None,
-                                csi: None,
-                                downward_api: None,
-                                empty_dir: None,
-                                fc: None,
-                                flex_volume: None,
-                                flocker: None,
-                                gce_persistent_disk: None,
-                                git_repo: None,
-                                glusterfs: None,
-                                host_path: None,
-                                iscsi: None,
-                                name: mount_secret.name.to_string(),
-                                nfs: None,
-                                persistent_volume_claim: None,
-                                photon_persistent_disk: None,
-                                portworx_volume: None,
-                                projected: None,
-                                quobyte: None,
-                                rbd: None,
-                                scale_io: None,
-                                secret: Some(SecretVolumeSource {
-                                    default_mode: None,
-                                    items: None,
-                                    optional: Some(true),
-                                    secret_name: Some(mount_secret.name.to_string())
-                                }),
-                                storageos: None,
-                                vsphere_volume: None,
-                            })
-                            .collect();
+        .iter()
+        .filter_map(|step_with_check_run_id| step_with_check_run_id.step.mount_secret.as_ref())
+        .flatten()
+        .map(|mount_secret| Volume {
+            aws_elastic_block_store: None,
+            azure_disk: None,
+            azure_file: None,
+            cephfs: None,
+            cinder: None,
+            config_map: None,
+            csi: None,
+            downward_api: None,
+            empty_dir: None,
+            fc: None,
+            flex_volume: None,
+            flocker: None,
+            gce_persistent_disk: None,
+            git_repo: None,
+            glusterfs: None,
+            host_path: None,
+            iscsi: None,
+            name: mount_secret.name.to_string(),
+            nfs: None,
+            persistent_volume_claim: None,
+            photon_persistent_disk: None,
+            portworx_volume: None,
+            projected: None,
+            quobyte: None,
+            rbd: None,
+            scale_io: None,
+            secret: Some(SecretVolumeSource {
+                default_mode: None,
+                items: None,
+                optional: Some(true),
+                secret_name: Some(mount_secret.name.to_string()),
+            }),
+            storageos: None,
+            vsphere_volume: None,
+        })
+        .collect();
 
-    let container_repo_volume_mounts: Vec<Volume> = volume_mount_names.clone()
-        .iter().map(|check_run_id| Volume {
+    let container_repo_volume_mounts: Vec<Volume> = volume_mount_names
+        .clone()
+        .iter()
+        .map(|check_run_id| Volume {
             aws_elastic_block_store: None,
             azure_disk: None,
             azure_file: None,
@@ -83,7 +97,7 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
             downward_api: None,
             empty_dir: Some(EmptyDirVolumeSource {
                 medium: None,
-                size_limit: None
+                size_limit: None,
             }),
             fc: None,
             flex_volume: None,
@@ -117,7 +131,7 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
     let git_checkout_init_container = GitInitContainer {
         clone_url: repo_name,
         commit_sha: github_head_sha,
-        volume_mount_names: &volume_mount_names
+        volume_mount_names: &volume_mount_names,
     };
 
     let mut pod_labels = BTreeMap::new();
@@ -144,7 +158,7 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
             owner_references: None,
             resource_version: None,
             self_link: None,
-            uid: None
+            uid: None,
         }),
         spec: Some(PodSpec {
             active_deadline_seconds: None,
@@ -160,7 +174,7 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
             host_pid: None,
             hostname: None,
             image_pull_secrets: None,
-            init_containers: Some(vec!(git_checkout_init_container.to_container())),
+            init_containers: Some(vec![git_checkout_init_container.to_container()]),
             node_name: None,
             node_selector: None,
             preemption_policy: None,
@@ -179,10 +193,13 @@ pub fn generate_kubernetes_pipeline(steps_with_check_run_id: &[StepWithCheckRunI
             tolerations: None,
             volumes: Some(volumes),
         }),
-        status: None
+        status: None,
     };
 
-    info!("Pod configuration to deploy: {}", json!(pod_deployment_config));
+    info!(
+        "Pod configuration to deploy: {}",
+        json!(pod_deployment_config)
+    );
 
     pod_deployment_config
 }

@@ -1,6 +1,6 @@
-use serde_derive::Deserialize;
+use log::info;
 use reqwest::header::{ACCEPT, USER_AGENT};
-use log::{info};
+use serde_derive::Deserialize;
 
 pub struct GithubAuthorisationClient {
     pub github_jwt_token: String,
@@ -13,10 +13,19 @@ struct InstallationAccessTokenResponse {
 }
 
 impl GithubAuthorisationClient {
-    pub async fn get_installation_access_token(&self, installation_id: u32) -> Result<String, Box<dyn std::error::Error>> {
-        let request_url = format!("{}/app/installations/{}/access_tokens", self.base_url, installation_id);
+    pub async fn get_installation_access_token(
+        &self,
+        installation_id: u32,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let request_url = format!(
+            "{}/app/installations/{}/access_tokens",
+            self.base_url, installation_id
+        );
 
-        info!("Requesting installation access token at {}...", &request_url);
+        info!(
+            "Requesting installation access token at {}...",
+            &request_url
+        );
 
         let response = reqwest::Client::new()
             .post(&request_url)
@@ -26,12 +35,13 @@ impl GithubAuthorisationClient {
             .send()
             .await?;
 
-        info!("Got response code {} back. Trying to decode now...", response.status());
+        info!(
+            "Got response code {} back. Trying to decode now...",
+            response.status()
+        );
 
-        let response_body = response
-            .json::<InstallationAccessTokenResponse>()
-            .await?;
-    
+        let response_body = response.json::<InstallationAccessTokenResponse>().await?;
+
         info!("Successfully got the access token!");
 
         Ok(response_body.token)

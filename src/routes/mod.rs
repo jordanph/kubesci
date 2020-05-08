@@ -1,9 +1,5 @@
-use warp::{
-  filters::BoxedFilter,
-  Filter
-};
 use serde_derive::Deserialize;
-
+use warp::{filters::BoxedFilter, Filter};
 
 #[derive(Deserialize)]
 pub struct CheckSuite {
@@ -29,58 +25,53 @@ pub struct Repository {
     pub full_name: String,
 }
 
-
 #[derive(Deserialize)]
 pub struct GithubCheckSuiteRequest {
     pub action: String,
     pub check_suite: CheckSuite,
     pub installation: Installation,
-    pub repository: Repository
+    pub repository: Repository,
 }
 
 #[derive(Deserialize)]
 pub struct CompleteCheckRunRequest {
-  pub name: String,
-  pub repo_name: String,
-  pub check_run_id: i32,
-  pub status: String,
-  pub started_at: String,
-  pub finished_at: Option<String>,
-  pub logs: String,
-  pub conclusion: Option<String>
+    pub name: String,
+    pub repo_name: String,
+    pub check_run_id: i32,
+    pub status: String,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub logs: String,
+    pub conclusion: Option<String>,
 }
 
-pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest, )> {
-  let check_suite_header = warp::header::exact("X-GitHub-Event", "check_suite");
-  
-  warp::post()
-    .and(warp::path("webhook"))
-    .and(check_suite_header)
-    .and(warp::body::json::<GithubCheckSuiteRequest>())
-    .boxed()
+pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest,)> {
+    let check_suite_header = warp::header::exact("X-GitHub-Event", "check_suite");
+
+    warp::post()
+        .and(warp::path("webhook"))
+        .and(check_suite_header)
+        .and(warp::body::json::<GithubCheckSuiteRequest>())
+        .boxed()
 }
 
 pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
     warp::path!("update-check-run" / u32)
-    .and(warp::post())
-    .and(warp::body::json::<CompleteCheckRunRequest>())
-    .boxed()
+        .and(warp::post())
+        .and(warp::body::json::<CompleteCheckRunRequest>())
+        .boxed()
 }
 
 pub fn get_pipelines_route() -> BoxedFilter<()> {
-    warp::get()
-    .and(warp::path("pipelines"))
-    .boxed()
+    warp::get().and(warp::path("pipelines")).boxed()
 }
 
-pub fn get_pipeline_route() -> BoxedFilter<(String, )> {
-    warp::path!("pipelines" / String)
-    .boxed()
+pub fn get_pipeline_route() -> BoxedFilter<(String,)> {
+    warp::path!("pipelines" / String).boxed()
 }
 
 pub fn get_pipeline_steps_route() -> BoxedFilter<(String, String)> {
-    warp::path!("pipelines" / String / String)
-    .boxed()
+    warp::path!("pipelines" / String / String).boxed()
 }
 
 #[cfg(test)]
@@ -88,7 +79,9 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    async fn check_suite_test_handler(_check_suite_request: GithubCheckSuiteRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
+    async fn check_suite_test_handler(
+        _check_suite_request: GithubCheckSuiteRequest,
+    ) -> std::result::Result<impl warp::reply::Reply, warp::Rejection> {
         Ok(warp::reply())
     }
 
@@ -115,7 +108,8 @@ mod tests {
             .path("/webhook")
             .header("X-GitHub-Event", "check_suite")
             .json(&body)
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 200)
     }
@@ -128,7 +122,8 @@ mod tests {
             .method("POST")
             .path("/webhook")
             .header("X-GitHub-Event", "check_suite")
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 400)
     }
@@ -155,12 +150,16 @@ mod tests {
             .method("POST")
             .path("/webhook")
             .json(&body)
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 400)
     }
 
-    async fn check_run_test_handler(_installation_id: u32, _check_run_request: CompleteCheckRunRequest) -> std::result::Result<impl warp::reply::Reply, warp::Rejection>{
+    async fn check_run_test_handler(
+        _installation_id: u32,
+        _check_run_request: CompleteCheckRunRequest,
+    ) -> std::result::Result<impl warp::reply::Reply, warp::Rejection> {
         Ok(warp::reply())
     }
 
@@ -182,7 +181,8 @@ mod tests {
             .path("/update-check-run/123")
             .header("X-GitHub-Event", "check_suite")
             .json(&body)
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 200)
     }
@@ -194,7 +194,8 @@ mod tests {
         let response = warp::test::request()
             .method("POST")
             .path("/update-check-run/123")
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 400)
     }
@@ -216,7 +217,8 @@ mod tests {
             .method("POST")
             .path("/update-check-run")
             .json(&body)
-            .reply(&route).await;
+            .reply(&route)
+            .await;
 
         assert_eq!(response.status(), 404)
     }

@@ -6,12 +6,11 @@ pub mod steps_filter;
 use serde_derive::{Deserialize, Serialize};
 use vec1::Vec1;
 
-use k8s_openapi::api::core::v1::{Container, VolumeMount, EnvVar, EnvVarSource, SecretKeySelector};
+use k8s_openapi::api::core::v1::{Container, EnvVar, EnvVarSource, SecretKeySelector, VolumeMount};
 
 pub trait KubernetesContainer {
-  fn to_container(&self) -> Container;
+    fn to_container(&self) -> Container;
 }
-
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct SecretKeyRef {
@@ -21,25 +20,28 @@ struct SecretKeyRef {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct ValueFrom {
-    #[serde(rename="secretKeyRef")]
-    secret_key_ref: SecretKeyRef
+    #[serde(rename = "secretKeyRef")]
+    secret_key_ref: SecretKeyRef,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 enum Environment {
-    BasicEnv { name: String, value: String},
+    BasicEnv {
+        name: String,
+        value: String,
+    },
     KubernetesSecretEnv {
         name: String,
-        #[serde(rename="valueFrom")]
-        value_from: ValueFrom
-    }
+        #[serde(rename = "valueFrom")]
+        value_from: ValueFrom,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct MountSecret {
     name: String,
-    #[serde(rename="mountPath")]
+    #[serde(rename = "mountPath")]
     mount_path: String,
 }
 
@@ -51,13 +53,13 @@ pub struct Step {
     args: Option<std::vec::Vec<String>>,
     branch: Option<String>,
     env: Option<Vec1<Environment>>,
-    #[serde(rename="mountSecret")]
+    #[serde(rename = "mountSecret")]
     mount_secret: Option<Vec1<MountSecret>>,
 }
 
 pub struct StepWithCheckRunId<'a> {
     pub step: &'a Step,
-    pub check_run_id: u32
+    pub check_run_id: u32,
 }
 
 impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
@@ -70,48 +72,53 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             name: self.check_run_id.to_string(),
             read_only: None,
             sub_path: None,
-            sub_path_expr: None
-          }];
+            sub_path_expr: None,
+        }];
 
-          let maybe_mounted_secrets = self.step.mount_secret.clone().map(|mount_secrets| mount_secrets.into_iter().map(|mount_secret| VolumeMount {
-            mount_path: mount_secret.mount_path,
-            mount_propagation: None,
-            name: mount_secret.name,
-            read_only: Some(true),
-            sub_path: None,
-            sub_path_expr: None
-          }).collect::<Vec<VolumeMount>>());
+        let maybe_mounted_secrets = self.step.mount_secret.clone().map(|mount_secrets| {
+            mount_secrets
+                .into_iter()
+                .map(|mount_secret| VolumeMount {
+                    mount_path: mount_secret.mount_path,
+                    mount_propagation: None,
+                    name: mount_secret.name,
+                    read_only: Some(true),
+                    sub_path: None,
+                    sub_path_expr: None,
+                })
+                .collect::<Vec<VolumeMount>>()
+        });
 
         let volume_mounts: Vec<VolumeMount> = match maybe_mounted_secrets {
             Some(mount_secrets) => [mount_secrets.to_vec(), repo_mount].concat(),
-            None => repo_mount
+            None => repo_mount,
         };
 
-        let maybe_envs = self.step.env.clone().map(|envs| envs.iter().map(|env| match env {
-            Environment::BasicEnv {
-                name, value
-            } => EnvVar {
-                name: name.clone(),
-                value: Some(value.clone()),
-                value_from: None
-            },
-            Environment::KubernetesSecretEnv {
-                name, value_from
-            } => EnvVar {
-                name: name.clone(),
-                value: None,
-                value_from: Some(EnvVarSource {
-                    config_map_key_ref: None,
-                    field_ref: None,
-                    resource_field_ref: None,
-                    secret_key_ref: Some(SecretKeySelector {
-                        name: Some(value_from.secret_key_ref.name.clone()),
-                        key: value_from.secret_key_ref.key.clone(),
-                        optional: None
-                    })
+        let maybe_envs = self.step.env.clone().map(|envs| {
+            envs.iter()
+                .map(|env| match env {
+                    Environment::BasicEnv { name, value } => EnvVar {
+                        name: name.clone(),
+                        value: Some(value.clone()),
+                        value_from: None,
+                    },
+                    Environment::KubernetesSecretEnv { name, value_from } => EnvVar {
+                        name: name.clone(),
+                        value: None,
+                        value_from: Some(EnvVarSource {
+                            config_map_key_ref: None,
+                            field_ref: None,
+                            resource_field_ref: None,
+                            secret_key_ref: Some(SecretKeySelector {
+                                name: Some(value_from.secret_key_ref.name.clone()),
+                                key: value_from.secret_key_ref.key.clone(),
+                                optional: None,
+                            }),
+                        }),
+                    },
                 })
-            }
-        }).collect::<Vec<EnvVar>>());
+                .collect::<Vec<EnvVar>>()
+        });
 
         Container {
             args: self.step.args.clone(),
@@ -135,7 +142,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             volume_devices: None,
             volume_mounts: Some(volume_mounts),
             working_dir: Some(working_dir),
-          }
+        }
     }
 }
 
