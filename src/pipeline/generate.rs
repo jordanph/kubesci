@@ -127,9 +127,10 @@ pub fn generate_kubernetes_pipeline(
     info!("Volumes to deploy: {}", json!(volumes));
 
     let short_commit = &github_head_sha[0..7];
+    let clone_url = format!("https://github.com/{}", repo_name);
 
     let git_checkout_init_container = GitInitContainer {
-        clone_url: repo_name,
+        clone_url: &clone_url,
         commit_sha: github_head_sha,
         volume_mount_names: &volume_mount_names,
     };

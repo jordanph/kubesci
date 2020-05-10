@@ -7,15 +7,11 @@ steps:
       - cargo test
 
   - name: "Run linting"
-    image: busybox
-    branch: "!master"
+    image: rust:1.42
     commands: 
       - sh 
       - -c 
-      - echo "$HELLO_WORLD" && sleep 5
-    env:
-      - name: HELLO_WORLD
-        value: "hello world!"
+      - rustup component add clippy --toolchain 1.42.0-x86_64-unknown-linux-gnu && cargo clippy -- -D warnings
 
   - name: "Release"
     image: gcr.io/kaniko-project/executor:latest
