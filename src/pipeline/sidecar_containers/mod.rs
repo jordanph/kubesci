@@ -18,7 +18,12 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
             .map(|step_with_check_run_id| {
                 format!(
                     "{}={}",
-                    step_with_check_run_id.step.name.replace(" ", "-").to_lowercase(), step_with_check_run_id.check_run_id
+                    step_with_check_run_id
+                        .step
+                        .name
+                        .replace(" ", "-")
+                        .to_lowercase(),
+                    step_with_check_run_id.check_run_id
                 )
             })
             .collect::<Vec<String>>()

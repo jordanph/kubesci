@@ -120,9 +120,31 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
                 .collect::<Vec<EnvVar>>()
         });
 
+        let command = self.step.commands.as_ref().map(|commands| {
+            let start_script_file = "#!/bin/sh\\nset -euf\\n".to_string();
+
+            let mut script = start_script_file;
+
+            for command in commands {
+                script += &format!("echo '{}'\\n", command);
+                script += &format!("{}\\n", command);
+            }
+
+            let escaped_script = script.replace("'", "'\\\''");
+
+            vec![
+                "/bin/sh".to_string(),
+                "-c".to_string(),
+                format!(
+                    "echo '{}' > ./script.sh && chmod +x ./script.sh && ./script.sh",
+                    escaped_script
+                ),
+            ]
+        });
+
         Container {
             args: self.step.args.clone(),
-            command: self.step.commands.clone(),
+            command,
             env: maybe_envs,
             env_from: None,
             image: Some(self.step.image.to_string()),
@@ -154,4 +176,30 @@ pub struct RawPipeline {
 #[derive(Debug, Deserialize)]
 pub struct Pipeline {
     pub steps: Vec1<Step>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn correctly_construct_script_to_run() {
+        let step = Step {
+            name: "test-string".to_string(),
+            image: "some-image".to_string(),
+            commands: Some(vec!["cargo test".to_string(), "cargo run".to_string()]),
+            args: None,
+            branch: None,
+            env: None,
+            mount_secret: None,
+        };
+
+        let step_with_check_run_id = StepWithCheckRunId {
+            step: &step,
+            check_run_id: 1,
+        };
+
+        let container = step_with_check_run_id.to_container();
+
+        assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
+    }
 }
