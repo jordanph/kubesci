@@ -1,22 +1,20 @@
 steps:
   - name: "Run tests"
     branch: "!master"
-    image: rust:1.42
-    commands: 
+    image: jordanph/kubes-cd-dependencies-image:latest
+    commands:
       - cargo test
 
   - name: "Run linting"
     branch: "!master"
-    image: rust:1.42
+    image: jordanph/kubes-cd-dependencies-image:latest
     commands: 
-      - rustup component add clippy --toolchain 1.42.0-x86_64-unknown-linux-gnu
       - cargo clippy -- -D warnings
 
   - name: "Run formatting"
     branch: "!master"
-    image: rust:1.42
+    image: jordanph/kubes-cd-dependencies-image:latest
     commands:
-      - rustup component add rustfmt --toolchain 1.42.0-x86_64-unknown-linux-gnu
       - cargo fmt -- --check
 
   - name: "Release"
@@ -25,7 +23,20 @@ steps:
     args:
       - "--dockerfile=/app/Dockerfile"
       - "--context=dir:///app"
+      - "--cache=true"
       - "--destination=jordanph/kubes-cd:latest"
+    mountSecret:
+      - name: docker-config
+        mountPath: /kaniko/.docker
+
+  - name: "Publish test dependencies image"
+    image: gcr.io/kaniko-project/executor:latest
+    branch: master
+    args:
+      - "--dockerfile=/app/dependencies.dockerfile"
+      - "--context=dir:///app"
+      - "--cache=true"
+      - "--destination=jordanph/kubes-cd-dependencies-image:latest"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
