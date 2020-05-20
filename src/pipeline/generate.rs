@@ -41,7 +41,7 @@ pub fn generate_kubernetes_pipeline(
         .map(|step_with_check_run_id| step_with_check_run_id.check_run_id.to_string())
         .collect();
 
-    let secret_mounts: Vec<Volume> = steps_with_check_run_id
+    let mut secret_mounts: Vec<Volume> = steps_with_check_run_id
         .iter()
         .filter_map(|step_with_check_run_id| step_with_check_run_id.step.mount_secret.as_ref())
         .flatten()
@@ -82,6 +82,10 @@ pub fn generate_kubernetes_pipeline(
             vsphere_volume: None,
         })
         .collect();
+
+    // Ensure the secret mounts are deduped if used more than once in pipeline
+    secret_mounts.sort_by(|m1, m2| m1.name.partial_cmp(&m2.name).unwrap());
+    secret_mounts.dedup_by(|m1, m2| m1.name.eq(&m2.name));
 
     let container_repo_volume_mounts: Vec<Volume> = volume_mount_names
         .clone()
@@ -203,4 +207,77 @@ pub fn generate_kubernetes_pipeline(
     );
 
     pod_deployment_config
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pipeline::{Step, MountSecret};
+
+    #[test]
+    fn should_remove_duplicate_secret_mounts() {
+        let github_head_sha = "abcdefgh";
+        let repo_name = "test_repo";
+        let branch = "master";
+        let namespace = "default";
+        let installation_id = 1234;
+
+        let step1 = Step {
+            name: "some-step".to_string(),
+            image: "some-image".to_string(),
+            commands: None,
+            args: None,
+            branch: None,
+            env: None,
+            mount_secret: Some(vec1![
+                MountSecret {
+                    name: "some-secret".to_string(),
+                    mount_path: "some-path".to_string()
+                },
+                MountSecret {
+                    name: "duplicate-secret".to_string(),
+                    mount_path: "some-path".to_string()
+                }
+            ])
+        };
+
+        let step2 = Step {
+            name: "some-step".to_string(),
+            image: "some-image".to_string(),
+            commands: None,
+            args: None,
+            branch: None,
+            env: None,
+            mount_secret: Some(vec1![
+                MountSecret {
+                    name: "some-other-secret".to_string(),
+                    mount_path: "some-path".to_string()
+                },
+                MountSecret {
+                    name: "duplicate-secret".to_string(),
+                    mount_path: "some-path".to_string()
+                }
+            ])
+        };
+
+        let steps_with_check_run_id = vec![
+            StepWithCheckRunId {
+                step: &step1,
+                check_run_id: 1234
+            },
+            StepWithCheckRunId {
+                step: &step2,
+                check_run_id: 1234
+            }
+        ];
+
+        let result = generate_kubernetes_pipeline(&steps_with_check_run_id, github_head_sha, repo_name, branch, namespace, installation_id);
+
+        let secret_mounts = result.spec.unwrap().volumes.unwrap();
+
+        let duplicate_secret_count = secret_mounts.iter().filter(|mount| mount.name.eq("duplicate-secret")).count();
+
+        assert_eq!(duplicate_secret_count, 1);
+    }
 }
