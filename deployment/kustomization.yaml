@@ -1,0 +1,6 @@
+namespace: kubesci
+
+resources:
+- resources/namespace.yaml
+- resources/install.yaml
+- resources/ingress.yaml
