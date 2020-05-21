@@ -36,6 +36,11 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
                 value: Some(self.namespace.to_string()),
                 value_from: None,
             },
+            EnvVar {
+                name: "REPO_NAME".to_string(),
+                value: Some(self.repo_name.to_string()),
+                value_from: None,
+            },
         ];
 
         Container {
