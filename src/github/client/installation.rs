@@ -20,21 +20,27 @@ struct UpdateCheckRunRequest {
 }
 
 #[derive(Serialize, Debug)]
-struct CheckRunOutput {
-    title: String,
-    summary: String,
-    text: String,
+struct CheckRunOutput<'a> {
+    title: &'a str,
+    summary: &'a str,
+    text: &'a str,
 }
 
 #[derive(Serialize, Debug)]
-struct CompletedCheckRunRequest {
-    accept: String,
-    name: String,
-    status: String,
-    started_at: String, // ISO 8601
-    conclusion: Option<String>,
-    completed_at: Option<String>, // ISO 8601
-    output: Option<CheckRunOutput>,
+struct CompletedCheckRunRequest<'a> {
+    accept: &'a str,
+    name: &'a str,
+    status: &'a str,
+    started_at: &'a str, // ISO 8601
+    conclusion: &'a Option<String>,
+    completed_at: &'a Option<String>, // ISO 8601
+    output: Option<&'a CheckRunOutput<'a>>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetCheckRunResponse {
+    pub name: String,
+    pub started_at: String,
 }
 
 pub struct GithubInstallationClient {
@@ -81,29 +87,56 @@ impl GithubInstallationClient {
         Ok(check_run_response)
     }
 
-    pub async fn set_check_run_complete(
+    pub async fn get_check_run(
         &self,
-        update_check_run_request: CompleteCheckRunRequest,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let name = update_check_run_request.name.clone();
-
+        check_run_id: i32,
+    ) -> Result<GetCheckRunResponse, Box<dyn std::error::Error>> {
         let request_url = format!(
             "{}/repos/{}/check-runs/{}",
-            self.base_url, self.repository_name, update_check_run_request.check_run_id
+            self.base_url, self.repository_name, check_run_id,
         );
 
+        info!("Getting the check run {}...", check_run_id);
+
+        let check_run_response = reqwest::Client::new()
+            .get(&request_url)
+            .bearer_auth(self.github_installation_token.to_string())
+            .header(ACCEPT, "application/vnd.github.antiope-preview+json")
+            .header(USER_AGENT, "my-test-app")
+            .send()
+            .await?
+            .json::<GetCheckRunResponse>()
+            .await?;
+
+        Ok(check_run_response)
+    }
+
+    pub async fn set_check_run_complete(
+        &self,
+        check_run_id: i32,
+        update_check_run_request: &CompleteCheckRunRequest,
+        name: &str,
+        started_at: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let request_url = format!(
+            "{}/repos/{}/check-runs/{}",
+            self.base_url, self.repository_name, check_run_id
+        );
+
+        let check_run_output = CheckRunOutput {
+            title: name,
+            summary: "Complete!",
+            text: &update_check_run_request.logs,
+        };
+
         let update_check_run_request = CompletedCheckRunRequest {
-            accept: "application/vnd.github.antiope-preview+json".to_string(),
+            accept: "application/vnd.github.antiope-preview+json",
             name,
-            status: update_check_run_request.status,
-            started_at: update_check_run_request.started_at,
-            completed_at: update_check_run_request.finished_at,
-            conclusion: update_check_run_request.conclusion,
-            output: Some(CheckRunOutput {
-                title: update_check_run_request.name.clone(),
-                summary: "Complete!".to_string(),
-                text: update_check_run_request.logs,
-            }),
+            status: &update_check_run_request.status,
+            started_at: &started_at.to_string(),
+            completed_at: &update_check_run_request.finished_at,
+            conclusion: &update_check_run_request.conclusion,
+            output: Some(&check_run_output),
         };
 
         info!(

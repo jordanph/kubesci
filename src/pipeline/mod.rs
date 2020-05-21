@@ -3,6 +3,7 @@ pub mod init_containers;
 pub mod sidecar_containers;
 pub mod steps_filter;
 
+use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use vec1::Vec1;
 
@@ -94,6 +95,12 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             None => repo_mount,
         };
 
+        let check_run_id_env = EnvVar {
+            name: "CHECK_RUN_ID".to_string(),
+            value: Some(self.check_run_id.to_string()),
+            value_from: None,
+        };
+
         let maybe_envs = self.step.env.clone().map(|envs| {
             envs.iter()
                 .map(|env| match env {
@@ -120,6 +127,12 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
                 .collect::<Vec<EnvVar>>()
         });
 
+        let envs: Vec<EnvVar> = if let Some(envs) = maybe_envs {
+            [envs, vec![check_run_id_env]].concat()
+        } else {
+            vec![check_run_id_env]
+        };
+
         let command = self.step.commands.as_ref().map(|commands| {
             let start_script_file = "#!/bin/sh\\nset -euf\\n".to_string();
 
@@ -136,22 +149,32 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
                 "/bin/sh".to_string(),
                 "-c".to_string(),
                 format!(
-                    "echo '{}' > ./script.sh && chmod +x ./script.sh && ./script.sh",
+                    "echo -e '{}' > ./script.sh && chmod +x ./script.sh && ./script.sh",
                     escaped_script
                 ),
             ]
         });
 
+        let regex = Regex::new(r"[^a-z0-9/-]").unwrap();
+
+        let step_name_with_spaces = self.step.name.replace(" ", "-").to_lowercase();
+
+        let container_name = format!(
+            "step-{}-{}",
+            regex.replace_all(&step_name_with_spaces, ""),
+            self.check_run_id
+        );
+
         Container {
             args: self.step.args.clone(),
             command,
-            env: maybe_envs,
+            env: Some(envs),
             env_from: None,
             image: Some(self.step.image.to_string()),
             image_pull_policy: None,
             lifecycle: None,
             liveness_probe: None,
-            name: self.step.name.replace(" ", "-").to_lowercase(),
+            name: container_name,
             ports: None,
             readiness_probe: None,
             resources: None,
@@ -200,6 +223,28 @@ mod tests {
 
         let container = step_with_check_run_id.to_container();
 
-        assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
+        assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo -e '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
+    }
+
+    #[test]
+    fn ensure_container_name_is_kubernetes_safe() {
+        let step = Step {
+            name: "Test Container %^& abn".to_string(),
+            image: "some-image".to_string(),
+            commands: Some(vec!["cargo test".to_string(), "cargo run".to_string()]),
+            args: None,
+            branch: None,
+            env: None,
+            mount_secret: None,
+        };
+
+        let step_with_check_run_id = StepWithCheckRunId {
+            step: &step,
+            check_run_id: 1,
+        };
+
+        let container = step_with_check_run_id.to_container();
+
+        assert_eq!(container.name, "step-test-container--abn-1");
     }
 }

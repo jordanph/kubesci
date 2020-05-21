@@ -763,6 +763,7 @@ dependencies = [
  "kube-derive",
  "log 0.4.8",
  "pretty_env_logger",
+ "regex",
  "reqwest",
  "serde",
  "serde_derive",

@@ -48,8 +48,17 @@ async fn update_check_run(
         base_url: "https://api.github.com".to_string(),
     };
 
+    let check_run = github_installation_client
+        .get_check_run(update_check_run_request.check_run_id)
+        .await?;
+
     github_installation_client
-        .set_check_run_complete(update_check_run_request)
+        .set_check_run_complete(
+            update_check_run_request.check_run_id,
+            &update_check_run_request,
+            &check_run.name,
+            &check_run.started_at,
+        )
         .await?;
 
     Ok(())

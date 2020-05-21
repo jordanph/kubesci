@@ -35,11 +35,9 @@ pub struct GithubCheckSuiteRequest {
 
 #[derive(Deserialize)]
 pub struct CompleteCheckRunRequest {
-    pub name: String,
     pub repo_name: String,
     pub check_run_id: i32,
     pub status: String,
-    pub started_at: String,
     pub finished_at: Option<String>,
     pub logs: String,
     pub conclusion: Option<String>,

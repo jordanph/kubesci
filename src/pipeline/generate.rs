@@ -29,7 +29,6 @@ pub fn generate_kubernetes_pipeline(
         namespace,
         repo_name,
         commit_sha: github_head_sha,
-        steps_with_check_run_ids: &steps_with_check_run_id,
     };
 
     containers.push(side_car_container.to_container());
@@ -209,11 +208,10 @@ pub fn generate_kubernetes_pipeline(
     pod_deployment_config
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::{Step, MountSecret};
+    use crate::pipeline::{MountSecret, Step};
 
     #[test]
     fn should_remove_duplicate_secret_mounts() {
@@ -239,7 +237,7 @@ mod tests {
                     name: "duplicate-secret".to_string(),
                     mount_path: "some-path".to_string()
                 }
-            ])
+            ]),
         };
 
         let step2 = Step {
@@ -258,25 +256,35 @@ mod tests {
                     name: "duplicate-secret".to_string(),
                     mount_path: "some-path".to_string()
                 }
-            ])
+            ]),
         };
 
         let steps_with_check_run_id = vec![
             StepWithCheckRunId {
                 step: &step1,
-                check_run_id: 1234
+                check_run_id: 1234,
             },
             StepWithCheckRunId {
                 step: &step2,
-                check_run_id: 1234
-            }
+                check_run_id: 1234,
+            },
         ];
 
-        let result = generate_kubernetes_pipeline(&steps_with_check_run_id, github_head_sha, repo_name, branch, namespace, installation_id);
+        let result = generate_kubernetes_pipeline(
+            &steps_with_check_run_id,
+            github_head_sha,
+            repo_name,
+            branch,
+            namespace,
+            installation_id,
+        );
 
         let secret_mounts = result.spec.unwrap().volumes.unwrap();
 
-        let duplicate_secret_count = secret_mounts.iter().filter(|mount| mount.name.eq("duplicate-secret")).count();
+        let duplicate_secret_count = secret_mounts
+            .iter()
+            .filter(|mount| mount.name.eq("duplicate-secret"))
+            .count();
 
         assert_eq!(duplicate_secret_count, 1);
     }

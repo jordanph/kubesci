@@ -8,7 +8,7 @@ steps:
   - name: "Run linting"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
-    commands: 
+    commands:
       - cargo clippy -- -D warnings
 
   - name: "Run formatting"
@@ -42,3 +42,4 @@ steps:
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
+ 
