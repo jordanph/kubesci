@@ -40,7 +40,7 @@ struct CompletedCheckRunRequest<'a> {
 #[derive(Deserialize, Debug)]
 pub struct GetCheckRunResponse {
     pub name: String,
-    pub started_at: String
+    pub started_at: String,
 }
 
 pub struct GithubInstallationClient {
@@ -89,7 +89,7 @@ impl GithubInstallationClient {
 
     pub async fn get_check_run(
         &self,
-        check_run_id: &i32
+        check_run_id: i32,
     ) -> Result<GetCheckRunResponse, Box<dyn std::error::Error>> {
         let request_url = format!(
             "{}/repos/{}/check-runs/{}",
@@ -113,7 +113,7 @@ impl GithubInstallationClient {
 
     pub async fn set_check_run_complete(
         &self,
-        check_run_id: &i32,
+        check_run_id: i32,
         update_check_run_request: &CompleteCheckRunRequest,
         name: &str,
         started_at: &str,
@@ -131,7 +131,7 @@ impl GithubInstallationClient {
 
         let update_check_run_request = CompletedCheckRunRequest {
             accept: "application/vnd.github.antiope-preview+json",
-            name: name,
+            name,
             status: &update_check_run_request.status,
             started_at: &started_at.to_string(),
             completed_at: &update_check_run_request.finished_at,

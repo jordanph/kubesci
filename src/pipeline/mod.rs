@@ -3,9 +3,9 @@ pub mod init_containers;
 pub mod sidecar_containers;
 pub mod steps_filter;
 
+use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use vec1::Vec1;
-use regex::Regex;
 
 use k8s_openapi::api::core::v1::{Container, EnvVar, EnvVarSource, SecretKeySelector, VolumeMount};
 
@@ -159,7 +159,11 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
 
         let step_name_with_spaces = self.step.name.replace(" ", "-").to_lowercase();
 
-        let container_name = format!("step-{}-{}", regex.replace_all(&step_name_with_spaces, ""), self.check_run_id);
+        let container_name = format!(
+            "step-{}-{}",
+            regex.replace_all(&step_name_with_spaces, ""),
+            self.check_run_id
+        );
 
         Container {
             args: self.step.args.clone(),
@@ -241,8 +245,6 @@ mod tests {
 
         let container = step_with_check_run_id.to_container();
 
-        assert_eq!(
-            container.name, "step-test-container--abn-1"
-        );
+        assert_eq!(container.name, "step-test-container--abn-1");
     }
 }
