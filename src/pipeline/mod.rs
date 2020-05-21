@@ -149,7 +149,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
                 "/bin/sh".to_string(),
                 "-c".to_string(),
                 format!(
-                    "echo '{}' > ./script.sh && chmod +x ./script.sh && ./script.sh",
+                    "echo -e '{}' > ./script.sh && chmod +x ./script.sh && ./script.sh",
                     escaped_script
                 ),
             ]
@@ -223,7 +223,7 @@ mod tests {
 
         let container = step_with_check_run_id.to_container();
 
-        assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
+        assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo -e '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
     }
 
     #[test]
