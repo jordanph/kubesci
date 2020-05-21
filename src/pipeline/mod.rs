@@ -5,6 +5,7 @@ pub mod steps_filter;
 
 use serde_derive::{Deserialize, Serialize};
 use vec1::Vec1;
+use regex::Regex;
 
 use k8s_openapi::api::core::v1::{Container, EnvVar, EnvVarSource, SecretKeySelector, VolumeMount};
 
@@ -154,6 +155,12 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             ]
         });
 
+        let regex = Regex::new(r"[^a-z0-9/-]").unwrap();
+
+        let step_name_with_spaces = self.step.name.replace(" ", "-").to_lowercase();
+
+        let container_name = format!("step-{}-{}", regex.replace_all(&step_name_with_spaces, ""), self.check_run_id);
+
         Container {
             args: self.step.args.clone(),
             command,
@@ -163,7 +170,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             image_pull_policy: None,
             lifecycle: None,
             liveness_probe: None,
-            name: self.step.name.replace(" ", "-").to_lowercase(),
+            name: container_name,
             ports: None,
             readiness_probe: None,
             resources: None,
@@ -216,9 +223,9 @@ mod tests {
     }
 
     #[test]
-    fn include_check_run_id_as_env_var() {
+    fn ensure_container_name_is_kubernetes_safe() {
         let step = Step {
-            name: "test-string".to_string(),
+            name: "Test Container %^& abn".to_string(),
             image: "some-image".to_string(),
             commands: Some(vec!["cargo test".to_string(), "cargo run".to_string()]),
             args: None,
@@ -233,17 +240,9 @@ mod tests {
         };
 
         let container = step_with_check_run_id.to_container();
-        let envs = container.env.as_ref().unwrap();
-
-        let check_run_env = envs.iter().find(|env| env.name == "CHECK_RUN_ID");
 
         assert_eq!(
-            check_run_env,
-            Some(&EnvVar {
-                name: "CHECK_RUN_ID".to_string(),
-                value: Some("1".to_string()),
-                value_from: None,
-            })
+            container.name, "step-test-container--abn-1"
         );
     }
 }
