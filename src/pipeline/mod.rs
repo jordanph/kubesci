@@ -94,6 +94,12 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             None => repo_mount,
         };
 
+        let check_run_id_env = EnvVar {
+            name: "CHECK_RUN_ID".to_string(),
+            value: Some(self.check_run_id.to_string()),
+            value_from: None,
+        };
+
         let maybe_envs = self.step.env.clone().map(|envs| {
             envs.iter()
                 .map(|env| match env {
@@ -120,6 +126,12 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
                 .collect::<Vec<EnvVar>>()
         });
 
+        let envs: Vec<EnvVar> = if let Some(envs) = maybe_envs {
+            [envs, vec![check_run_id_env]].concat()
+        } else {
+            vec![check_run_id_env]
+        };
+
         let command = self.step.commands.as_ref().map(|commands| {
             let start_script_file = "#!/bin/sh\\nset -euf\\n".to_string();
 
@@ -145,7 +157,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
         Container {
             args: self.step.args.clone(),
             command,
-            env: maybe_envs,
+            env: Some(envs),
             env_from: None,
             image: Some(self.step.image.to_string()),
             image_pull_policy: None,
@@ -201,5 +213,37 @@ mod tests {
         let container = step_with_check_run_id.to_container();
 
         assert_eq!(container.command, Some(vec!("/bin/sh".to_string(), "-c".to_string(), "echo '#!/bin/sh\\nset -euf\\necho '\\\''cargo test'\\''\\ncargo test\\necho '\\''cargo run'\\''\\ncargo run\\n' > ./script.sh && chmod +x ./script.sh && ./script.sh".to_string())))
+    }
+
+    #[test]
+    fn include_check_run_id_as_env_var() {
+        let step = Step {
+            name: "test-string".to_string(),
+            image: "some-image".to_string(),
+            commands: Some(vec!["cargo test".to_string(), "cargo run".to_string()]),
+            args: None,
+            branch: None,
+            env: None,
+            mount_secret: None,
+        };
+
+        let step_with_check_run_id = StepWithCheckRunId {
+            step: &step,
+            check_run_id: 1,
+        };
+
+        let container = step_with_check_run_id.to_container();
+        let envs = container.env.as_ref().unwrap();
+
+        let check_run_env = envs.iter().find(|env| env.name == "CHECK_RUN_ID");
+
+        assert_eq!(
+            check_run_env,
+            Some(&EnvVar {
+                name: "CHECK_RUN_ID".to_string(),
+                value: Some("1".to_string()),
+                value_from: None,
+            })
+        );
     }
 }

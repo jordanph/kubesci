@@ -1,5 +1,4 @@
 use crate::pipeline::KubernetesContainer;
-use crate::pipeline::StepWithCheckRunId;
 use k8s_openapi::api::core::v1::{Container, EnvVar};
 
 pub struct PollingSidecarContainer<'a> {
@@ -7,34 +6,11 @@ pub struct PollingSidecarContainer<'a> {
     pub namespace: &'a str,
     pub repo_name: &'a str,
     pub commit_sha: &'a str,
-    pub steps_with_check_run_ids: &'a [StepWithCheckRunId<'a>],
 }
 
 impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
     fn to_container(&self) -> Container {
-        let step_check_id_map_env: String = self
-            .steps_with_check_run_ids
-            .iter()
-            .map(|step_with_check_run_id| {
-                format!(
-                    "{}={}",
-                    step_with_check_run_id
-                        .step
-                        .name
-                        .replace(" ", "-")
-                        .to_lowercase(),
-                    step_with_check_run_id.check_run_id
-                )
-            })
-            .collect::<Vec<String>>()
-            .join(",");
-
         let env = vec![
-            EnvVar {
-                name: "CHECK_RUN_POD_NAME_MAP".to_string(),
-                value: Some(step_check_id_map_env),
-                value_from: None,
-            },
             EnvVar {
                 name: "POD_NAME".to_string(),
                 value: Some(self.commit_sha.to_string()),
@@ -58,11 +34,6 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
             EnvVar {
                 name: "NAMESPACE".to_string(),
                 value: Some(self.namespace.to_string()),
-                value_from: None,
-            },
-            EnvVar {
-                name: "REPO_NAME".to_string(),
-                value: Some(self.repo_name.to_string()),
                 value_from: None,
             },
         ];
