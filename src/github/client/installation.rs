@@ -113,7 +113,7 @@ impl GithubInstallationClient {
 
         let actions = vec![Action {
             label: name,
-            description: "Unblocks the current pipeline and allows the remaining steps to run",
+            description: "Unblocks the remaining steps to run",
             identifier: "unblock-step",
         }];
 
@@ -142,7 +142,7 @@ impl GithubInstallationClient {
             .send()
             .await?;
 
-        info!("Response was: {:?}", response);
+        info!("Response was: {:?}", response.text().await?);
 
         Ok(())
     }
