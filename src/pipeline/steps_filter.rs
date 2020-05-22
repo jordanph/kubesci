@@ -1,9 +1,9 @@
-use crate::pipeline::{Block, BlockOrStep, Step};
+use crate::pipeline::{Block, Step, StepType};
 use either::{Either, Either::Left, Either::Right};
 use vec1::Vec1;
 
 pub fn filter<'a>(
-    steps: &'a [BlockOrStep],
+    steps: &'a [StepType],
     github_branch_name: &str,
     step_section: usize,
 ) -> Option<Either<&'a Block, Vec1<&'a Step>>> {
@@ -14,7 +14,7 @@ pub fn filter<'a>(
 
     match Vec1::try_from_vec(maybe_steps).ok() {
         Some(steps) => {
-            let split_steps = split_blocks_and_steps(steps);
+            let split_steps = split_into_blocks_and_steps(steps);
 
             split_steps
                 .get(step_section)
@@ -25,21 +25,24 @@ pub fn filter<'a>(
 }
 
 // There be dragons...
-fn split_blocks_and_steps<'a>(
-    steps_or_blocks: Vec1<&'a BlockOrStep>,
+fn split_into_blocks_and_steps<'a>(
+    steps_or_blocks: Vec1<&'a StepType>,
 ) -> Vec<Either<&'a Block, Vec1<&'a Step>>> {
+    let mut previous_step_was_wait = false;
+
     steps_or_blocks.iter().fold(
         Vec::new(),
         |mut acc: Vec<Either<&'a Block, Vec1<&'a Step>>>, block_or_step| match block_or_step {
-            BlockOrStep::Block(block) => {
+            StepType::Block(block) => {
                 acc.push(Left(&block));
+                previous_step_was_wait = false;
                 acc
             }
-            BlockOrStep::Step(step) => {
+            StepType::Step(step) => {
                 let lastest_value = acc.pop();
 
                 match lastest_value {
-                    Some(Right(steps)) => {
+                    Some(Right(steps)) if !previous_step_was_wait => {
                         let mut non_empty_vec = vec1![step];
                         non_empty_vec.extend(steps.to_owned());
 
@@ -52,16 +55,22 @@ fn split_blocks_and_steps<'a>(
                     None => acc.push(Right(vec1![&step])),
                 }
 
+                previous_step_was_wait = false;
+                acc
+            }
+            StepType::Wait => {
+                previous_step_was_wait = true;
                 acc
             }
         },
     )
 }
 
-fn skip_step_or_block(step_or_block: &BlockOrStep, github_branch_name: &str) -> bool {
-    let branch = match step_or_block {
-        BlockOrStep::Block(block) => block.branch.clone(),
-        BlockOrStep::Step(step) => step.branch.clone(),
+fn skip_step_or_block(step: &StepType, github_branch_name: &str) -> bool {
+    let branch = match step {
+        StepType::Block(block) => block.branch.clone(),
+        StepType::Step(step) => step.branch.clone(),
+        StepType::Wait => None,
     };
 
     branch.is_none()
@@ -111,8 +120,8 @@ mod tests {
         };
 
         let steps = vec![
-            BlockOrStep::Step(step_that_does_not_match_branch),
-            BlockOrStep::Step(step_that_matches_branch),
+            StepType::Step(step_that_does_not_match_branch),
+            StepType::Step(step_that_matches_branch),
         ];
 
         let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
@@ -150,8 +159,8 @@ mod tests {
         };
 
         let steps = vec![
-            BlockOrStep::Step(step_that_does_not_match_branch),
-            BlockOrStep::Step(step_that_matches_branch),
+            StepType::Step(step_that_does_not_match_branch),
+            StepType::Step(step_that_matches_branch),
         ];
 
         let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
@@ -189,8 +198,8 @@ mod tests {
         };
 
         let steps = vec![
-            BlockOrStep::Step(step_with_exclamation_branch_that_matches_branch),
-            BlockOrStep::Step(step_with_exclamation_branch_that_does_not_match_branch),
+            StepType::Step(step_with_exclamation_branch_that_matches_branch),
+            StepType::Step(step_with_exclamation_branch_that_does_not_match_branch),
         ];
 
         let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
@@ -229,8 +238,8 @@ mod tests {
         };
 
         let steps = vec![
-            BlockOrStep::Step(step_with_exclamation_branch_that_matches_branch),
-            BlockOrStep::Step(step_with_exclamation_branch_that_does_not_match_branch),
+            StepType::Step(step_with_exclamation_branch_that_matches_branch),
+            StepType::Step(step_with_exclamation_branch_that_does_not_match_branch),
         ];
 
         let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
@@ -261,7 +270,7 @@ mod tests {
             branch: None,
         };
 
-        let steps = vec![BlockOrStep::Step(step), BlockOrStep::Block(block)];
+        let steps = vec![StepType::Step(step), StepType::Block(block)];
 
         let filtered_steps = filter(&steps, "some_branch", 0).unwrap();
 
@@ -285,7 +294,7 @@ mod tests {
             branch: None,
         };
 
-        let steps = vec![BlockOrStep::Block(block), BlockOrStep::Step(step)];
+        let steps = vec![StepType::Block(block), StepType::Step(step)];
 
         let filtered_steps = filter(&steps, "some_branch", 0).unwrap();
 

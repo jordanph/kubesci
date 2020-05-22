@@ -193,9 +193,11 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum BlockOrStep {
+pub enum StepType {
     Block(Block),
     Step(Step),
+    #[serde(rename = "wait")]
+    Wait,
 }
 
 #[derive(Debug, Deserialize)]
@@ -207,7 +209,7 @@ pub struct Block {
 
 #[derive(Debug, Deserialize)]
 pub struct RawPipeline {
-    pub steps: Vec1<BlockOrStep>,
+    pub steps: Vec1<StepType>,
 }
 
 #[derive(Debug, Deserialize)]
