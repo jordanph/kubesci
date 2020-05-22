@@ -6,13 +6,14 @@ extern crate vec1;
 
 use handlers::check_run::handle_check_run_request;
 use handlers::check_suite::handle_check_suite_request;
+use handlers::pod_finished_successfully::handle_pod_finished_successfully_request;
 use handlers::update_check_run::handle_update_check_run_request;
 use handlers::{
     pipeline::handle_get_pipeline, pipelines::handle_get_pipelines, steps::handle_get_steps,
 };
 use routes::{
     check_run_route, check_suite_route, get_pipeline_route, get_pipeline_steps_route,
-    get_pipelines_route, update_check_run_route,
+    get_pipelines_route, notify_pod_successfully_completed_route, update_check_run_route,
 };
 
 mod github;
@@ -33,6 +34,9 @@ async fn main() {
     let update_check_run_handler =
         update_check_run_route().and_then(handle_update_check_run_request);
 
+    let pod_finished_successfully_handler = notify_pod_successfully_completed_route()
+        .and_then(handle_pod_finished_successfully_request);
+
     let get_pipelines_handler = get_pipelines_route()
         .and_then(handle_get_pipelines)
         .with(cors);
@@ -52,6 +56,7 @@ async fn main() {
     let app_routes = check_suite_handler
         .or(check_run_handler)
         .or(update_check_run_handler)
+        .or(pod_finished_successfully_handler)
         .or(get_pipeline_steps_handler)
         .or(get_pipeline_handler)
         .or(get_pipelines_handler);

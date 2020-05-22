@@ -52,8 +52,8 @@ pub struct GetCheckRunResponse {
     pub started_at: String,
 }
 
-pub struct GithubInstallationClient {
-    pub repository_name: String,
+pub struct GithubInstallationClient<'a> {
+    pub repository_name: &'a str,
     pub github_installation_token: String,
     pub base_url: String,
 }
@@ -63,7 +63,7 @@ pub struct CreateCheckRunResponse {
     pub id: u32,
 }
 
-impl GithubInstallationClient {
+impl<'a> GithubInstallationClient<'a> {
     pub async fn create_check_run(
         &self,
         name: &str,
@@ -100,7 +100,7 @@ impl GithubInstallationClient {
         &self,
         name: &str,
         head_sha: &str,
-        step_section: usize,
+        step_section_to_unblock: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let create_check_run_response = self.create_check_run(name, head_sha).await?;
 
@@ -115,7 +115,7 @@ impl GithubInstallationClient {
         let actions = vec![Action {
             label: "Unblock",
             description: "Unblocks the remaining steps",
-            identifier: step_section.to_string(),
+            identifier: step_section_to_unblock.to_string(),
         }];
 
         let update_check_run_request = CompletedCheckRunRequest {

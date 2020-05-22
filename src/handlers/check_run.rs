@@ -54,7 +54,7 @@ async fn handle_requested_action(
         .await?;
 
     let github_installation_client = GithubInstallationClient {
-        repository_name: github_webhook_request.repository.full_name.to_string(),
+        repository_name: &github_webhook_request.repository.full_name,
         github_installation_token: installation_access_token,
         base_url: "https://api.github.com".to_string(),
     };
@@ -104,10 +104,9 @@ async fn handle_requested_action(
                 &steps_with_check_run_id,
                 &github_webhook_request.check_run.check_suite.head_sha,
                 &github_webhook_request.repository.full_name,
-                &github_webhook_request.check_run.check_suite.head_branch,
                 &namespace,
                 github_webhook_request.installation.id,
-                step_section
+                step_section,
             );
 
             let client = Client::infer().await?;

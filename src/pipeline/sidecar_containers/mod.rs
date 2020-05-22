@@ -14,7 +14,11 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
         let env = vec![
             EnvVar {
                 name: "POD_NAME".to_string(),
-                value: Some(format!("{}-{}", self.commit_sha.to_string(), self.step_section.to_string())),
+                value: Some(format!(
+                    "{}-{}",
+                    self.commit_sha.to_string(),
+                    self.step_section.to_string()
+                )),
                 value_from: None,
             },
             EnvVar {

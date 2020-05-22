@@ -15,10 +15,9 @@ pub fn generate_kubernetes_pipeline(
     steps_with_check_run_id: &[StepWithCheckRunId],
     github_head_sha: &str,
     repo_name: &str,
-    branch: &str,
     namespace: &str,
     installation_id: u32,
-    step_section: usize
+    step_section: usize,
 ) -> Pod {
     let mut containers: Vec<Container> = steps_with_check_run_id
         .iter()
@@ -30,7 +29,7 @@ pub fn generate_kubernetes_pipeline(
         namespace,
         repo_name,
         commit_sha: github_head_sha,
-        step_section
+        step_section,
     };
 
     containers.push(side_car_container.to_container());
@@ -142,7 +141,6 @@ pub fn generate_kubernetes_pipeline(
 
     let mut pod_labels = BTreeMap::new();
     pod_labels.insert("repo".to_string(), repo_name.replace("/", "."));
-    pod_labels.insert("branch".to_string(), branch.to_string());
     pod_labels.insert("commit".to_string(), short_commit.to_string());
     pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
 
@@ -276,10 +274,9 @@ mod tests {
             &steps_with_check_run_id,
             github_head_sha,
             repo_name,
-            branch,
             namespace,
             installation_id,
-            0
+            0,
         );
 
         let secret_mounts = result.spec.unwrap().volumes.unwrap();

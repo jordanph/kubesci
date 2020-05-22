@@ -59,7 +59,7 @@ pub struct CompleteCheckRunRequest {
 
 #[derive(Deserialize)]
 pub struct PodSuccessfullyFinishedRequest {
-    pub step_section: i32,
+    pub step_section: usize,
     pub repo_name: String,
     pub commit_sha: String,
 }
@@ -91,7 +91,8 @@ pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
         .boxed()
 }
 
-pub fn notify_pod_successfully_completed() -> BoxedFilter<(u32, PodSuccessfullyFinishedRequest)> {
+pub fn notify_pod_successfully_completed_route(
+) -> BoxedFilter<(u32, PodSuccessfullyFinishedRequest)> {
     warp::path!("pod-finished" / u32)
         .and(warp::post())
         .and(warp::body::json::<PodSuccessfullyFinishedRequest>())

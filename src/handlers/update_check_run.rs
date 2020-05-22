@@ -43,7 +43,7 @@ async fn update_check_run(
         .await?;
 
     let github_installation_client = GithubInstallationClient {
-        repository_name: update_check_run_request.repo_name.clone(),
+        repository_name: &update_check_run_request.repo_name,
         github_installation_token: installation_access_token,
         base_url: "https://api.github.com".to_string(),
     };
