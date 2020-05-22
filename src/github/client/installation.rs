@@ -43,7 +43,7 @@ struct CompletedCheckRunRequest<'a> {
     conclusion: &'a Option<String>,
     completed_at: &'a Option<String>, // ISO 8601
     output: Option<&'a CheckRunOutput<'a>>,
-    actions: Option<&'a Vec<Action<'a>>>,
+    actions: &'a Vec<Action<'a>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -126,7 +126,7 @@ impl GithubInstallationClient {
             completed_at: &Some(fnished_at),
             conclusion: &Some("success".to_string()),
             output: None,
-            actions: Some(&actions),
+            actions: &actions,
         };
 
         info!(
@@ -198,7 +198,7 @@ impl GithubInstallationClient {
             completed_at: &update_check_run_request.finished_at,
             conclusion: &update_check_run_request.conclusion,
             output: Some(&check_run_output),
-            actions: None,
+            actions: &Vec::new(),
         };
 
         info!(
