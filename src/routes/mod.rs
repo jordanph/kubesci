@@ -21,6 +21,11 @@ pub struct Installation {
 }
 
 #[derive(Deserialize)]
+pub struct RequestedAction {
+    pub identifier: String,
+}
+
+#[derive(Deserialize)]
 pub struct Repository {
     pub full_name: String,
 }
@@ -31,6 +36,16 @@ pub struct GithubCheckSuiteRequest {
     pub check_suite: CheckSuite,
     pub installation: Installation,
     pub repository: Repository,
+}
+
+
+#[derive(Deserialize)]
+pub struct GithubCheckRunRequest {
+    pub action: String,
+    pub check_run: CheckRun,
+    pub installation: Installation,
+    pub repository: Repository,
+    pub requested_action: Option<RequestedAction>
 }
 
 #[derive(Deserialize)]
@@ -50,6 +65,16 @@ pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest,)> {
         .and(warp::path("webhook"))
         .and(check_suite_header)
         .and(warp::body::json::<GithubCheckSuiteRequest>())
+        .boxed()
+}
+
+pub fn check_run_route() -> BoxedFilter<(GithubCheckRunRequest,)> {
+    let check_run_header = warp::header::exact("X-GitHub-Event", "check_run");
+
+    warp::post()
+        .and(warp::path("webhook"))
+        .and(check_run_header)
+        .and(warp::body::json::<GithubCheckRunRequest>())
         .boxed()
 }
 

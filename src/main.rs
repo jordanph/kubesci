@@ -4,14 +4,14 @@ use warp::Filter;
 #[macro_use]
 extern crate vec1;
 
-use handlers::check_run::handle_update_check_run_request;
+use handlers::update_check_run::handle_update_check_run_request;
 use handlers::check_suite::handle_check_suite_request;
 use handlers::{
     pipeline::handle_get_pipeline, pipelines::handle_get_pipelines, steps::handle_get_steps,
 };
 use routes::{
     check_suite_route, get_pipeline_route, get_pipeline_steps_route, get_pipelines_route,
-    update_check_run_route,
+    update_check_run_route
 };
 
 mod github;
