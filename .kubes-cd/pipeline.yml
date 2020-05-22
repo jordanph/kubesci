@@ -1,7 +1,4 @@
 steps:
-  - block: ":rocket: Continue steps?"
-    branches: "!master"
-
   - name: "Run tests"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
@@ -13,9 +10,6 @@ steps:
     image: jordanph/kubes-cd-dependencies-image:latest
     commands:
       - cargo clippy -- -D warnings
-
-  - block: ":smile: Continue more steps?"
-    branches: "!master"
 
   - name: "Run formatting"
     branch: "!master"
