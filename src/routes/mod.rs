@@ -38,14 +38,13 @@ pub struct GithubCheckSuiteRequest {
     pub repository: Repository,
 }
 
-
 #[derive(Deserialize)]
 pub struct GithubCheckRunRequest {
     pub action: String,
     pub check_run: CheckRun,
     pub installation: Installation,
     pub repository: Repository,
-    pub requested_action: Option<RequestedAction>
+    pub requested_action: Option<RequestedAction>,
 }
 
 #[derive(Deserialize)]

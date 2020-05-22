@@ -5,6 +5,7 @@ use vec1::Vec1;
 pub fn filter<'a>(
     steps: &'a [BlockOrStep],
     github_branch_name: &str,
+    step_section: usize,
 ) -> Option<Either<&'a Block, Vec1<&'a Step>>> {
     let maybe_steps = steps
         .iter()
@@ -15,7 +16,9 @@ pub fn filter<'a>(
         Some(steps) => {
             let split_steps = split_blocks_and_steps(steps);
 
-            split_steps.first().map(|either| either.to_owned())
+            split_steps
+                .get(step_section)
+                .map(|either| either.to_owned())
         }
         None => None,
     }
@@ -78,7 +81,7 @@ mod tests {
     #[test]
     fn should_return_none_if_no_steps_to_run() {
         let empty_steps = &Vec::new();
-        let maybe_steps = filter(empty_steps, &"some_branch".to_string());
+        let maybe_steps = filter(empty_steps, &"some_branch".to_string(), 0);
 
         assert!(maybe_steps.is_none());
     }
@@ -112,7 +115,7 @@ mod tests {
             BlockOrStep::Step(step_that_matches_branch),
         ];
 
-        let filtered_steps = filter(&steps, branch).unwrap().right().unwrap();
+        let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
 
         let filter_step_names: Vec<String> = filtered_steps
             .iter()
@@ -151,7 +154,7 @@ mod tests {
             BlockOrStep::Step(step_that_matches_branch),
         ];
 
-        let filtered_steps = filter(&steps, branch).unwrap().right().unwrap();
+        let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
 
         let filter_step_names: Vec<String> = filtered_steps
             .iter()
@@ -190,7 +193,7 @@ mod tests {
             BlockOrStep::Step(step_with_exclamation_branch_that_does_not_match_branch),
         ];
 
-        let filtered_steps = filter(&steps, branch).unwrap().right().unwrap();
+        let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
 
         let filter_step_names: Vec<String> = filtered_steps
             .iter()
@@ -230,7 +233,7 @@ mod tests {
             BlockOrStep::Step(step_with_exclamation_branch_that_does_not_match_branch),
         ];
 
-        let filtered_steps = filter(&steps, branch).unwrap().right().unwrap();
+        let filtered_steps = filter(&steps, branch, 0).unwrap().right().unwrap();
 
         let filter_step_names: Vec<String> = filtered_steps
             .iter()
@@ -260,7 +263,7 @@ mod tests {
 
         let steps = vec![BlockOrStep::Step(step), BlockOrStep::Block(block)];
 
-        let filtered_steps = filter(&steps, "some_branch").unwrap();
+        let filtered_steps = filter(&steps, "some_branch", 0).unwrap();
 
         assert!(filtered_steps.is_right());
     }
@@ -284,7 +287,7 @@ mod tests {
 
         let steps = vec![BlockOrStep::Block(block), BlockOrStep::Step(step)];
 
-        let filtered_steps = filter(&steps, "some_branch").unwrap();
+        let filtered_steps = filter(&steps, "some_branch", 0).unwrap();
 
         assert!(filtered_steps.is_left());
     }

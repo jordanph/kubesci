@@ -31,7 +31,7 @@ struct CheckRunOutput<'a> {
 pub struct Action<'a> {
     pub label: &'a str,
     pub description: &'a str,
-    pub identifier: &'a str,
+    pub identifier: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -100,6 +100,7 @@ impl GithubInstallationClient {
         &self,
         name: &str,
         head_sha: &str,
+        step_section: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let create_check_run_response = self.create_check_run(name, head_sha).await?;
 
@@ -114,7 +115,7 @@ impl GithubInstallationClient {
         let actions = vec![Action {
             label: "Unblock",
             description: "Unblocks the remaining steps",
-            identifier: "unblock_step",
+            identifier: step_section.to_string(),
         }];
 
         let update_check_run_request = CompletedCheckRunRequest {

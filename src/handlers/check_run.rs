@@ -5,7 +5,7 @@ use crate::pipeline::generate::generate_kubernetes_pipeline;
 use crate::pipeline::steps_filter::filter;
 use crate::pipeline::RawPipeline;
 use crate::pipeline::StepWithCheckRunId;
-use crate::routes::GithubCheckSuiteRequest;
+use crate::routes::GithubCheckRunRequest;
 use chrono::Utc;
 use either::Either::{Left, Right};
 use k8s_openapi::api::core::v1::Pod;
@@ -19,14 +19,14 @@ use kube::{
     Client,
 };
 
-pub async fn handle_check_suite_request(
-    github_webhook_request: GithubCheckSuiteRequest,
+pub async fn handle_check_run_request(
+    github_webhook_request: GithubCheckRunRequest,
 ) -> Result<impl warp::Reply, Infallible> {
-    if github_webhook_request.action != "requested" {
+    if github_webhook_request.action != "requested_action" {
         return Ok(warp::reply::with_status("".to_string(), StatusCode::OK));
     }
 
-    match create_check_run(github_webhook_request).await {
+    match handle_requested_action(github_webhook_request).await {
         Ok(()) => Ok(warp::reply::with_status("".to_string(), StatusCode::OK)),
         Err(error) => Ok(warp::reply::with_status(
             error.to_string(),
@@ -35,8 +35,8 @@ pub async fn handle_check_suite_request(
     }
 }
 
-async fn create_check_run(
-    github_webhook_request: GithubCheckSuiteRequest,
+async fn handle_requested_action(
+    github_webhook_request: GithubCheckRunRequest,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let github_private_key = env::var("GITHUB_APPLICATION_PRIVATE_KEY")?;
     let application_id = env::var("APPLICATION_ID")?;
@@ -60,7 +60,7 @@ async fn create_check_run(
     };
 
     let maybe_raw_pipeline = github_installation_client
-        .get_pipeline_file(&github_webhook_request.check_suite.head_sha)
+        .get_pipeline_file(&github_webhook_request.check_run.check_suite.head_sha)
         .await?;
 
     if let Some(raw_pipeline) = maybe_raw_pipeline {
@@ -68,10 +68,17 @@ async fn create_check_run(
         // Introduce "block" complexity
         let raw_pipeline: RawPipeline = serde_yaml::from_str(&raw_pipeline)?;
 
+        let step_section: usize = github_webhook_request
+            .requested_action
+            .unwrap()
+            .identifier
+            .parse()
+            .unwrap();
+
         let maybe_steps = filter(
             &raw_pipeline.steps,
-            &github_webhook_request.check_suite.head_branch,
-            0,
+            &github_webhook_request.check_run.check_suite.head_branch,
+            1,
         );
 
         if let Some(Right(steps)) = maybe_steps {
@@ -79,7 +86,10 @@ async fn create_check_run(
 
             for step in steps {
                 let checkrun_response = github_installation_client
-                    .create_check_run(&step.name, &github_webhook_request.check_suite.head_sha)
+                    .create_check_run(
+                        &step.name,
+                        &github_webhook_request.check_run.check_suite.head_sha,
+                    )
                     .await?;
 
                 steps_with_check_run_id.push(StepWithCheckRunId {
@@ -92,9 +102,9 @@ async fn create_check_run(
 
             let pod_deployment = generate_kubernetes_pipeline(
                 &steps_with_check_run_id,
-                &github_webhook_request.check_suite.head_sha,
+                &github_webhook_request.check_run.check_suite.head_sha,
                 &github_webhook_request.repository.full_name,
-                &github_webhook_request.check_suite.head_branch,
+                &github_webhook_request.check_run.check_suite.head_branch,
                 &namespace,
                 github_webhook_request.installation.id,
             );
@@ -115,9 +125,12 @@ async fn create_check_run(
                 Err(e) => return Err(e.into()),
             }
         } else if let Some(Left(block)) = maybe_steps {
-            // As first step is a block, the next step_section will be 1
             github_installation_client
-                .create_block_step(&block.name, &github_webhook_request.check_suite.head_sha, 1)
+                .create_block_step(
+                    &block.name,
+                    &github_webhook_request.check_run.check_suite.head_sha,
+                    step_section + 1,
+                )
                 .await?;
         }
     }

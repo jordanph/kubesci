@@ -2,11 +2,12 @@ use chrono::{DateTime, Utc};
 use k8s_openapi::api::core::v1::Pod;
 use serde_derive::Serialize;
 
-pub mod update_check_run;
+pub mod check_run;
 pub mod check_suite;
 pub mod pipeline;
 pub mod pipelines;
 pub mod steps;
+pub mod update_check_run;
 
 #[derive(Serialize, Clone)]
 pub struct Run {
