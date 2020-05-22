@@ -58,7 +58,7 @@ fn split_into_blocks_and_steps<'a>(
                 previous_step_was_wait = false;
                 acc
             }
-            StepType::Wait => {
+            StepType::Wait(_) => {
                 previous_step_was_wait = true;
                 acc
             }
@@ -70,7 +70,7 @@ fn skip_step_or_block(step: &StepType, github_branch_name: &str) -> bool {
     let branch = match step {
         StepType::Block(block) => block.branch.clone(),
         StepType::Step(step) => step.branch.clone(),
-        StepType::Wait => None,
+        StepType::Wait(_) => None,
     };
 
     branch.is_none()
