@@ -5,6 +5,9 @@ steps:
     commands:
       - cargo test
 
+  - block: "Continue steps?"
+    branches: "!master"
+
   - name: "Run linting"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
@@ -42,4 +45,3 @@ steps:
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
- 

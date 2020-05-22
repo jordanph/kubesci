@@ -7,6 +7,7 @@ use crate::pipeline::RawPipeline;
 use crate::pipeline::StepWithCheckRunId;
 use crate::routes::GithubCheckSuiteRequest;
 use chrono::Utc;
+use either::Either::Right;
 use k8s_openapi::api::core::v1::Pod;
 use log::info;
 use std::convert::Infallible;
@@ -64,6 +65,7 @@ async fn create_check_run(
 
     if let Some(raw_pipeline) = maybe_raw_pipeline {
         // TODO: Create a check run for parsing pipeline
+        // Introduce "block" complexity
         let raw_pipeline: RawPipeline = serde_yaml::from_str(&raw_pipeline)?;
 
         let maybe_steps = filter(
@@ -71,16 +73,16 @@ async fn create_check_run(
             &github_webhook_request.check_suite.head_branch,
         );
 
-        if let Some(steps) = maybe_steps {
+        if let Some(Right(steps)) = maybe_steps {
             let mut steps_with_check_run_id: Vec<StepWithCheckRunId> = Vec::new();
 
-            for step in &steps {
+            for step in steps {
                 let checkrun_response = github_installation_client
                     .create_check_run(&step.name, &github_webhook_request.check_suite.head_sha)
                     .await?;
 
                 steps_with_check_run_id.push(StepWithCheckRunId {
-                    step: *step,
+                    step,
                     check_run_id: checkrun_response.id,
                 });
             }

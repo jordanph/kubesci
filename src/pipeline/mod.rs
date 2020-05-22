@@ -46,7 +46,7 @@ struct MountSecret {
     mount_path: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Step {
     pub name: String,
     image: String,
@@ -192,8 +192,22 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum BlockOrStep {
+    Block(Block),
+    Step(Step),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Block {
+    #[serde(rename = "block")]
+    name: String,
+    branch: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct RawPipeline {
-    pub steps: Vec1<Step>,
+    pub steps: Vec1<BlockOrStep>,
 }
 
 #[derive(Debug, Deserialize)]
