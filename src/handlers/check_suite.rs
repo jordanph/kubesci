@@ -68,10 +68,12 @@ async fn create_check_run(
         // Introduce "block" complexity
         let raw_pipeline: RawPipeline = serde_yaml::from_str(&raw_pipeline)?;
 
+        let step_section = 0;
+
         let maybe_steps = filter(
             &raw_pipeline.steps,
             &github_webhook_request.check_suite.head_branch,
-            0,
+            step_section,
         );
 
         if let Some(Right(steps)) = maybe_steps {
@@ -97,6 +99,7 @@ async fn create_check_run(
                 &github_webhook_request.check_suite.head_branch,
                 &namespace,
                 github_webhook_request.installation.id,
+                step_section
             );
 
             let client = Client::infer().await?;

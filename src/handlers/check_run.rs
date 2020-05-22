@@ -78,7 +78,7 @@ async fn handle_requested_action(
         let maybe_steps = filter(
             &raw_pipeline.steps,
             &github_webhook_request.check_run.check_suite.head_branch,
-            1,
+            step_section,
         );
 
         if let Some(Right(steps)) = maybe_steps {
@@ -107,6 +107,7 @@ async fn handle_requested_action(
                 &github_webhook_request.check_run.check_suite.head_branch,
                 &namespace,
                 github_webhook_request.installation.id,
+                step_section
             );
 
             let client = Client::infer().await?;

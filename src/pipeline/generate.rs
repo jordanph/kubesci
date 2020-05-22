@@ -18,6 +18,7 @@ pub fn generate_kubernetes_pipeline(
     branch: &str,
     namespace: &str,
     installation_id: u32,
+    step_section: usize
 ) -> Pod {
     let mut containers: Vec<Container> = steps_with_check_run_id
         .iter()
@@ -29,6 +30,7 @@ pub fn generate_kubernetes_pipeline(
         namespace,
         repo_name,
         commit_sha: github_head_sha,
+        step_section
     };
 
     containers.push(side_car_container.to_container());
@@ -277,6 +279,7 @@ mod tests {
             branch,
             namespace,
             installation_id,
+            0
         );
 
         let secret_mounts = result.spec.unwrap().volumes.unwrap();
