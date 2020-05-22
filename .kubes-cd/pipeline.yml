@@ -1,5 +1,5 @@
 steps:
-  - block: "Continue steps?"
+  - block: ":rocket: Continue steps?"
     branches: "!master"
 
   - name: "Run tests"
