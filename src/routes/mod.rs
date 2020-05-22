@@ -57,6 +57,13 @@ pub struct CompleteCheckRunRequest {
     pub conclusion: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct PodSuccessfullyFinishedRequest {
+    pub step_section: i32,
+    pub repo_name: String,
+    pub commit_sha: String,
+}
+
 pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest,)> {
     let check_suite_header = warp::header::exact("X-GitHub-Event", "check_suite");
 
@@ -81,6 +88,13 @@ pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
     warp::path!("update-check-run" / u32)
         .and(warp::post())
         .and(warp::body::json::<CompleteCheckRunRequest>())
+        .boxed()
+}
+
+pub fn notify_pod_successfully_completed() -> BoxedFilter<(u32, PodSuccessfullyFinishedRequest)> {
+    warp::path!("pod-finished" / u32)
+        .and(warp::post())
+        .and(warp::body::json::<PodSuccessfullyFinishedRequest>())
         .boxed()
 }
 
