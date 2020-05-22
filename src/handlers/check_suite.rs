@@ -7,7 +7,7 @@ use crate::pipeline::RawPipeline;
 use crate::pipeline::StepWithCheckRunId;
 use crate::routes::GithubCheckSuiteRequest;
 use chrono::Utc;
-use either::Either::Right;
+use either::Either::{Left, Right};
 use k8s_openapi::api::core::v1::Pod;
 use log::info;
 use std::convert::Infallible;
@@ -113,8 +113,11 @@ async fn create_check_run(
                 Err(kube::Error::Api(ae)) => assert_eq!(ae.code, 409),
                 Err(e) => return Err(e.into()),
             }
+        } else if let Some(Left(block)) = maybe_steps {
+            github_installation_client
+                .create_block_step(&block.name, &github_webhook_request.check_suite.head_sha)
+                .await?;
         }
     }
-
     Ok(())
 }

@@ -1,12 +1,12 @@
 steps:
+  - block: "Continue steps?"
+    branches: "!master"
+
   - name: "Run tests"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
     commands:
       - cargo test
-
-  - block: "Continue steps?"
-    branches: "!master"
 
   - name: "Run linting"
     branch: "!master"

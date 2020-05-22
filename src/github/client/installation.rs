@@ -1,4 +1,5 @@
 use crate::routes::CompleteCheckRunRequest;
+use chrono::prelude::*;
 use log::info;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use serde_derive::{Deserialize, Serialize};
@@ -27,6 +28,13 @@ struct CheckRunOutput<'a> {
 }
 
 #[derive(Serialize, Debug)]
+pub struct Action<'a> {
+    pub label: &'a str,
+    pub description: &'a str,
+    pub identifier: &'a str,
+}
+
+#[derive(Serialize, Debug)]
 struct CompletedCheckRunRequest<'a> {
     accept: &'a str,
     name: &'a str,
@@ -35,6 +43,7 @@ struct CompletedCheckRunRequest<'a> {
     conclusion: &'a Option<String>,
     completed_at: &'a Option<String>, // ISO 8601
     output: Option<&'a CheckRunOutput<'a>>,
+    action: Option<&'a Action<'a>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -87,6 +96,57 @@ impl GithubInstallationClient {
         Ok(check_run_response)
     }
 
+    pub async fn create_block_step(
+        &self,
+        name: &str,
+        head_sha: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let create_check_run_response = self.create_check_run(name, head_sha).await?;
+
+        let request_url = format!(
+            "{}/repos/{}/check-runs/{}",
+            self.base_url, self.repository_name, create_check_run_response.id
+        );
+
+        let started_at = Utc::now().to_rfc3339();
+        let fnished_at = Utc::now().to_rfc3339();
+
+        let action = Action {
+            label: name,
+            description: "Unblocks the current pipeline and allows the remaining steps to run",
+            identifier: "unblock-step",
+        };
+
+        let update_check_run_request = CompletedCheckRunRequest {
+            accept: "application/vnd.github.antiope-preview+json",
+            name,
+            status: "completed",
+            started_at: &started_at,
+            completed_at: &Some(fnished_at),
+            conclusion: &Some("success".to_string()),
+            output: None,
+            action: Some(&action),
+        };
+
+        info!(
+            "Creating the block check run action: {:?}",
+            update_check_run_request
+        );
+
+        let response = reqwest::Client::new()
+            .patch(&request_url)
+            .bearer_auth(self.github_installation_token.to_string())
+            .header(ACCEPT, "application/vnd.github.antiope-preview+json")
+            .header(USER_AGENT, "my-test-app")
+            .json(&update_check_run_request)
+            .send()
+            .await?;
+
+        info!("Response was: {:?}", response);
+
+        Ok(())
+    }
+
     pub async fn get_check_run(
         &self,
         check_run_id: i32,
@@ -137,6 +197,7 @@ impl GithubInstallationClient {
             completed_at: &update_check_run_request.finished_at,
             conclusion: &update_check_run_request.conclusion,
             output: Some(&check_run_output),
+            action: None,
         };
 
         info!(

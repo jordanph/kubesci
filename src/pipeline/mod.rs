@@ -201,7 +201,7 @@ pub enum BlockOrStep {
 #[derive(Debug, Deserialize)]
 pub struct Block {
     #[serde(rename = "block")]
-    name: String,
+    pub name: String,
     branch: Option<String>,
 }
 
