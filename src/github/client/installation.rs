@@ -112,9 +112,9 @@ impl GithubInstallationClient {
         let fnished_at = Utc::now().to_rfc3339();
 
         let actions = vec![Action {
-            label: name,
-            description: "Unblocks the remaining steps to run",
-            identifier: "unblock-step",
+            label: "Unblock",
+            description: "Unblocks the remaining steps",
+            identifier: "unblock_step",
         }];
 
         let update_check_run_request = CompletedCheckRunRequest {
