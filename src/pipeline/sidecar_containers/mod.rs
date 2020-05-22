@@ -6,6 +6,7 @@ pub struct PollingSidecarContainer<'a> {
     pub namespace: &'a str,
     pub repo_name: &'a str,
     pub commit_sha: &'a str,
+    pub step_section: usize,
 }
 
 impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
@@ -13,6 +14,15 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
         let env = vec![
             EnvVar {
                 name: "POD_NAME".to_string(),
+                value: Some(format!(
+                    "{}-{}",
+                    self.commit_sha.to_string(),
+                    self.step_section.to_string()
+                )),
+                value_from: None,
+            },
+            EnvVar {
+                name: "COMMIT_SHA".to_string(),
                 value: Some(self.commit_sha.to_string()),
                 value_from: None,
             },
@@ -39,6 +49,11 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
             EnvVar {
                 name: "REPO_NAME".to_string(),
                 value: Some(self.repo_name.to_string()),
+                value_from: None,
+            },
+            EnvVar {
+                name: "STEP_SECTION".to_string(),
+                value: Some(self.step_section.to_string()),
                 value_from: None,
             },
         ];

@@ -21,6 +21,11 @@ pub struct Installation {
 }
 
 #[derive(Deserialize)]
+pub struct RequestedAction {
+    pub identifier: String,
+}
+
+#[derive(Deserialize)]
 pub struct Repository {
     pub full_name: String,
 }
@@ -34,6 +39,15 @@ pub struct GithubCheckSuiteRequest {
 }
 
 #[derive(Deserialize)]
+pub struct GithubCheckRunRequest {
+    pub action: String,
+    pub check_run: CheckRun,
+    pub installation: Installation,
+    pub repository: Repository,
+    pub requested_action: Option<RequestedAction>,
+}
+
+#[derive(Deserialize)]
 pub struct CompleteCheckRunRequest {
     pub repo_name: String,
     pub check_run_id: i32,
@@ -41,6 +55,13 @@ pub struct CompleteCheckRunRequest {
     pub finished_at: Option<String>,
     pub logs: String,
     pub conclusion: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct PodSuccessfullyFinishedRequest {
+    pub step_section: usize,
+    pub repo_name: String,
+    pub commit_sha: String,
 }
 
 pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest,)> {
@@ -53,10 +74,28 @@ pub fn check_suite_route() -> BoxedFilter<(GithubCheckSuiteRequest,)> {
         .boxed()
 }
 
+pub fn check_run_route() -> BoxedFilter<(GithubCheckRunRequest,)> {
+    let check_run_header = warp::header::exact("X-GitHub-Event", "check_run");
+
+    warp::post()
+        .and(warp::path("webhook"))
+        .and(check_run_header)
+        .and(warp::body::json::<GithubCheckRunRequest>())
+        .boxed()
+}
+
 pub fn update_check_run_route() -> BoxedFilter<(u32, CompleteCheckRunRequest)> {
     warp::path!("update-check-run" / u32)
         .and(warp::post())
         .and(warp::body::json::<CompleteCheckRunRequest>())
+        .boxed()
+}
+
+pub fn notify_pod_successfully_completed_route(
+) -> BoxedFilter<(u32, PodSuccessfullyFinishedRequest)> {
+    warp::path!("pod-finished" / u32)
+        .and(warp::post())
+        .and(warp::body::json::<PodSuccessfullyFinishedRequest>())
         .boxed()
 }
 

@@ -15,9 +15,9 @@ pub fn generate_kubernetes_pipeline(
     steps_with_check_run_id: &[StepWithCheckRunId],
     github_head_sha: &str,
     repo_name: &str,
-    branch: &str,
     namespace: &str,
     installation_id: u32,
+    step_section: usize,
 ) -> Pod {
     let mut containers: Vec<Container> = steps_with_check_run_id
         .iter()
@@ -29,6 +29,7 @@ pub fn generate_kubernetes_pipeline(
         namespace,
         repo_name,
         commit_sha: github_head_sha,
+        step_section,
     };
 
     containers.push(side_car_container.to_container());
@@ -140,7 +141,6 @@ pub fn generate_kubernetes_pipeline(
 
     let mut pod_labels = BTreeMap::new();
     pod_labels.insert("repo".to_string(), repo_name.replace("/", "."));
-    pod_labels.insert("branch".to_string(), branch.to_string());
     pod_labels.insert("commit".to_string(), short_commit.to_string());
     pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
 
@@ -157,7 +157,7 @@ pub fn generate_kubernetes_pipeline(
             initializers: None,
             labels: Some(pod_labels),
             managed_fields: None,
-            name: Some(github_head_sha.to_string()),
+            name: Some(format!("{}-{}", github_head_sha, step_section)),
             namespace: Some(namespace.to_string()),
             owner_references: None,
             resource_version: None,
@@ -217,7 +217,6 @@ mod tests {
     fn should_remove_duplicate_secret_mounts() {
         let github_head_sha = "abcdefgh";
         let repo_name = "test_repo";
-        let branch = "master";
         let namespace = "default";
         let installation_id = 1234;
 
@@ -274,9 +273,9 @@ mod tests {
             &steps_with_check_run_id,
             github_head_sha,
             repo_name,
-            branch,
             namespace,
             installation_id,
+            0,
         );
 
         let secret_mounts = result.spec.unwrap().volumes.unwrap();
