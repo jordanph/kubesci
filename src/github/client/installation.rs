@@ -43,7 +43,7 @@ struct CompletedCheckRunRequest<'a> {
     conclusion: &'a Option<String>,
     completed_at: &'a Option<String>, // ISO 8601
     output: Option<&'a CheckRunOutput<'a>>,
-    actions: Option<&'a Action<'a>>,
+    actions: Option<&'a Vec<Action<'a>>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -111,11 +111,11 @@ impl GithubInstallationClient {
         let started_at = Utc::now().to_rfc3339();
         let fnished_at = Utc::now().to_rfc3339();
 
-        let action = Action {
+        let actions = vec![Action {
             label: name,
             description: "Unblocks the current pipeline and allows the remaining steps to run",
             identifier: "unblock-step",
-        };
+        }];
 
         let update_check_run_request = CompletedCheckRunRequest {
             accept: "application/vnd.github.antiope-preview+json",
@@ -125,7 +125,7 @@ impl GithubInstallationClient {
             completed_at: &Some(fnished_at),
             conclusion: &Some("success".to_string()),
             output: None,
-            actions: Some(&action),
+            actions: Some(&actions),
         };
 
         info!(
