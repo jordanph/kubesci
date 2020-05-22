@@ -157,7 +157,7 @@ pub fn generate_kubernetes_pipeline(
             initializers: None,
             labels: Some(pod_labels),
             managed_fields: None,
-            name: Some(github_head_sha.to_string()),
+            name: Some(format!("{}-{}", github_head_sha, step_section)),
             namespace: Some(namespace.to_string()),
             owner_references: None,
             resource_version: None,
@@ -217,7 +217,6 @@ mod tests {
     fn should_remove_duplicate_secret_mounts() {
         let github_head_sha = "abcdefgh";
         let repo_name = "test_repo";
-        let branch = "master";
         let namespace = "default";
         let installation_id = 1234;
 

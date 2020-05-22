@@ -14,6 +14,9 @@ steps:
     commands:
       - cargo clippy -- -D warnings
 
+  - block: ":smile: Continue more steps?"
+    branches: "!master"
+
   - name: "Run formatting"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
