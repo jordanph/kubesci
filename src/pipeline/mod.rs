@@ -193,9 +193,11 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum BlockOrStep {
+pub enum StepType {
     Block(Block),
     Step(Step),
+    #[serde(rename = "wait")]
+    Wait(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -207,7 +209,7 @@ pub struct Block {
 
 #[derive(Debug, Deserialize)]
 pub struct RawPipeline {
-    pub steps: Vec1<BlockOrStep>,
+    pub steps: Vec1<StepType>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -260,5 +262,34 @@ mod tests {
         let container = step_with_check_run_id.to_container();
 
         assert_eq!(container.name, "step-test-container--abn-1");
+    }
+
+    #[test]
+    fn ensure_raw_pipeline_can_correctly_be_decoded() {
+        let raw_pipeline = r#"
+steps:
+  - wait
+
+  - block: this is a block
+    branch: master
+
+  - name: test step
+    image: some_image
+    branch: some_branch
+    commands:
+      - one
+      - two
+    args:
+      - balh
+      - qwah
+
+"#;
+
+        let raw_pipeline: std::result::Result<RawPipeline, serde_yaml::Error> =
+            serde_yaml::from_str(&raw_pipeline);
+
+        println!("{:?}", raw_pipeline);
+
+        assert!(raw_pipeline.is_ok());
     }
 }
