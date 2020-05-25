@@ -107,6 +107,7 @@ async fn handle_requested_action(
                 &namespace,
                 github_webhook_request.installation.id,
                 step_section,
+                &github_webhook_request.check_run.check_suite.head_branch,
             );
 
             let client = Client::infer().await?;

@@ -70,7 +70,7 @@ async fn handle_pod_finished_successfully(
 
         let maybe_steps = filter(
             &raw_pipeline.steps,
-            &pod_finished_successfully_request.commit_sha,
+            &pod_finished_successfully_request.branch_name,
             next_step_section,
         );
 
@@ -97,6 +97,7 @@ async fn handle_pod_finished_successfully(
                 &namespace,
                 installation_id,
                 next_step_section,
+                &pod_finished_successfully_request.branch_name,
             );
 
             let client = Client::infer().await?;

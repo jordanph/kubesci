@@ -61,6 +61,7 @@ pub struct CompleteCheckRunRequest {
 pub struct PodSuccessfullyFinishedRequest {
     pub step_section: usize,
     pub repo_name: String,
+    pub branch_name: String,
     pub commit_sha: String,
 }
 
