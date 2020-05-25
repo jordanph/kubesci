@@ -5,8 +5,6 @@ steps:
     commands:
       - cargo test
 
-  - wait
-
   - name: "Run linting"
     branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest

@@ -7,6 +7,7 @@ pub struct PollingSidecarContainer<'a> {
     pub repo_name: &'a str,
     pub commit_sha: &'a str,
     pub step_section: usize,
+    pub branch: &'a str,
 }
 
 impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
@@ -54,6 +55,11 @@ impl<'a> KubernetesContainer for PollingSidecarContainer<'a> {
             EnvVar {
                 name: "STEP_SECTION".to_string(),
                 value: Some(self.step_section.to_string()),
+                value_from: None,
+            },
+            EnvVar {
+                name: "BRANCH_NAME".to_string(),
+                value: Some(self.branch.to_string()),
                 value_from: None,
             },
         ];
