@@ -1,21 +1,20 @@
 steps:
   - name: "Run tests"
-    branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
     commands:
       - cargo test
 
   - name: "Run linting"
-    branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
     commands:
       - cargo clippy -- -D warnings
 
   - name: "Run formatting"
-    branch: "!master"
     image: jordanph/kubes-cd-dependencies-image:latest
     commands:
       - cargo fmt -- --check
+
+  - wait
 
   - name: "Release"
     image: gcr.io/kaniko-project/executor:latest
