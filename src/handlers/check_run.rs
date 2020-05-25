@@ -110,7 +110,7 @@ async fn handle_requested_action(
                 &github_webhook_request.check_run.check_suite.head_branch,
             );
 
-            let client = Client::infer().await?;
+            let client = Client::try_default().await?;
 
             let pods: Api<Pod> = Api::namespaced(client, &namespace);
 

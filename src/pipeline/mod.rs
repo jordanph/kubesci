@@ -179,6 +179,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             readiness_probe: None,
             resources: None,
             security_context: None,
+            startup_probe: None,
             stdin: None,
             stdin_once: None,
             termination_message_path: None,

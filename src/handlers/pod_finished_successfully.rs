@@ -100,7 +100,7 @@ async fn handle_pod_finished_successfully(
                 &pod_finished_successfully_request.branch_name,
             );
 
-            let client = Client::infer().await?;
+            let client = Client::try_default().await?;
 
             let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
