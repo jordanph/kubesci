@@ -12,7 +12,7 @@ pub fn authenticate_app(
     github_private_key: &str,
     application_id: &str,
     now: i64,
-) -> Result<std::string::String, Box<dyn std::error::Error>> {
+) -> Result<std::string::String, jsonwebtoken::errors::Error> {
     let ten_minutes_from_now = now + (10 * 60);
 
     let claim = Claims {

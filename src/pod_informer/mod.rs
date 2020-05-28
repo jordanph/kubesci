@@ -1,4 +1,3 @@
-use crate::github::auth::authenticate_app;
 use crate::github::client::auth::GithubAuthorisationClient;
 use crate::github::client::installation::GithubInstallationClient;
 use crate::pipeline::start_step_section;
@@ -247,14 +246,9 @@ async fn mark_step_complete(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let github_private_key = env::var("GITHUB_APPLICATION_PRIVATE_KEY")?;
     let application_id = env::var("APPLICATION_ID")?;
-    let now = Utc::now().timestamp();
 
-    let github_jwt_token = authenticate_app(&github_private_key, &application_id, now)?;
-
-    let github_authorisation_client = GithubAuthorisationClient {
-        github_jwt_token,
-        base_url: "https://api.github.com".to_string(),
-    };
+    let github_authorisation_client =
+        GithubAuthorisationClient::new(&github_private_key, &application_id)?;
 
     let installation_access_token = github_authorisation_client
         .get_installation_access_token(installation_id)
