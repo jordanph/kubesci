@@ -55,6 +55,8 @@ async fn handle_pod(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ev {
         WatchEvent::Added(pod) => {
+            info!("Pod was added: {}", pod.name());
+
             let maybe_running_pod = &pod
                 .meta()
                 .labels
@@ -96,6 +98,8 @@ async fn handle_pod(
             }
         }
         WatchEvent::Modified(pod) => {
+            info!("Pod was modified: {}", pod.name());
+
             let maybe_pod = running_pods.get(&pod.name());
 
             if let Some(running_pod) = maybe_pod {
@@ -114,7 +118,7 @@ async fn handle_pod(
 
                                 match (maybe_last_state, maybe_state) {
                                     (Some(last_state), Some(state)) => {
-                                        if last_state == state {
+                                        if last_state.terminated.is_some() {
                                             None
                                         } else if let Some(terminated) = state.terminated.clone() {
                                             Some((container_status.name.clone(), terminated))
@@ -122,7 +126,7 @@ async fn handle_pod(
                                             None
                                         }
                                     }
-                                    (_, Some(state)) => {
+                                    (None, Some(state)) => {
                                         if let Some(terminated) = state.terminated.clone() {
                                             Some((container_status.name.clone(), terminated))
                                         } else {
