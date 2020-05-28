@@ -15,9 +15,9 @@ pub fn generate_kubernetes_pipeline(
     github_head_sha: &str,
     repo_name: &str,
     namespace: &str,
-    _installation_id: u32,
+    installation_id: u32,
     step_section: usize,
-    _branch: &str,
+    branch: &str,
 ) -> Pod {
     let containers: Vec<Container> = steps_with_check_run_id
         .iter()
@@ -133,6 +133,15 @@ pub fn generate_kubernetes_pipeline(
     pod_labels.insert("repo".to_string(), repo_name.replace("/", "."));
     pod_labels.insert("commit".to_string(), short_commit.to_string());
     pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
+
+    pod_labels.insert("installation_id".to_string(), installation_id.to_string());
+    pod_labels.insert(
+        "repo_name".to_string(),
+        repo_name.to_string().replace("/", "."),
+    );
+    pod_labels.insert("branch_name".to_string(), branch.to_string());
+    pod_labels.insert("commit_sha".to_string(), github_head_sha.to_string());
+    pod_labels.insert("step_section".to_string(), step_section.to_string());
 
     let pod_deployment_config = Pod {
         metadata: Some(ObjectMeta {

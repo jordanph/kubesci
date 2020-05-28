@@ -81,7 +81,7 @@ async fn handle_pod(
                             Some(step_section),
                         ) => Some(RunningPod {
                             installation_id: installation_id.clone().parse().unwrap(),
-                            repo_name: repo_name.clone(),
+                            repo_name: repo_name.clone().replace(".", "/"),
                             branch_name: branch_name.clone(),
                             commit_sha: commit_sha.clone(),
                             step_section: step_section.clone().parse().unwrap(),
