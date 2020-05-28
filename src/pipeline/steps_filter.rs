@@ -1,4 +1,4 @@
-use crate::pipeline::{Block, Step, StepType};
+use crate::kubernetes::{Block, Step, StepType};
 use either::{Either, Either::Left, Either::Right};
 use vec1::Vec1;
 

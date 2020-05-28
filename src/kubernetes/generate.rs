@@ -1,6 +1,6 @@
-use crate::pipeline::init_containers::git::GitInitContainer;
-use crate::pipeline::KubernetesContainer;
-use crate::pipeline::StepWithCheckRunId;
+use crate::kubernetes::init_containers::git::GitInitContainer;
+use crate::kubernetes::KubernetesContainer;
+use crate::kubernetes::StepWithCheckRunId;
 use log::info;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -10,7 +10,7 @@ use k8s_openapi::api::core::v1::{
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-pub fn generate_kubernetes_pipeline(
+pub fn generate_pod_for_steps(
     steps_with_check_run_id: &[StepWithCheckRunId],
     github_head_sha: &str,
     repo_name: &str,
@@ -212,7 +212,7 @@ pub fn generate_kubernetes_pipeline(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::{MountSecret, Step};
+    use crate::kubernetes::{MountSecret, Step};
 
     #[test]
     fn should_remove_duplicate_secret_mounts() {
@@ -271,7 +271,7 @@ mod tests {
             },
         ];
 
-        let result = generate_kubernetes_pipeline(
+        let result = generate_pod_for_steps(
             &steps_with_check_run_id,
             github_head_sha,
             repo_name,
