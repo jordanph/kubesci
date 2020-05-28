@@ -18,7 +18,7 @@ use kube::{
     runtime::Informer,
     Client,
 };
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 use std::env;
 
@@ -43,18 +43,24 @@ pub async fn poll_pods() {
         let mut pods = inf.poll().await.unwrap().boxed();
 
         while let Some(event) = pods.try_next().await.unwrap() {
-            handle_pod(event, &mut running_pods).await.unwrap();
+            match handle_pod(event, &mut running_pods).await {
+                Ok(()) => {}
+                Err(e) => error!("Encountered error while polling pods: {}", e),
+            }
         }
     }
 }
 
-// This function lets the app handle an event from kube
 async fn handle_pod(
     ev: WatchEvent<Pod>,
     running_pods: &mut HashMap<String, RunningPod>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ev {
         WatchEvent::Added(pod) => {
+            info!("Pod was added: {}", pod.name());
+
+            // TO DO: Add checks to clean up pipelines that finished when controller was done
+
             let maybe_running_pod = &pod
                 .meta()
                 .labels
@@ -96,6 +102,8 @@ async fn handle_pod(
             }
         }
         WatchEvent::Modified(pod) => {
+            info!("Pod was modified: {}", pod.name());
+
             let maybe_pod = running_pods.get(&pod.name());
 
             if let Some(running_pod) = maybe_pod {
@@ -114,7 +122,7 @@ async fn handle_pod(
 
                                 match (maybe_last_state, maybe_state) {
                                     (Some(last_state), Some(state)) => {
-                                        if last_state == state {
+                                        if last_state.terminated.is_some() {
                                             None
                                         } else if let Some(terminated) = state.terminated.clone() {
                                             Some((container_status.name.clone(), terminated))
@@ -122,7 +130,7 @@ async fn handle_pod(
                                             None
                                         }
                                     }
-                                    (_, Some(state)) => {
+                                    (None, Some(state)) => {
                                         if let Some(terminated) = state.terminated.clone() {
                                             Some((container_status.name.clone(), terminated))
                                         } else {
@@ -160,8 +168,9 @@ async fn handle_pod(
                                 .as_ref()
                                 .unwrap();
 
-                            let Time(finished_at) =
-                                finished_pod_state.finished_at.as_ref().unwrap();
+                            let Time(finished_at) = finished_pod_state
+                                .finished_at
+                                .unwrap_or_else(|| Time(Utc::now()));
 
                             mark_step_complete(
                                 running_pod.installation_id,
@@ -176,38 +185,30 @@ async fn handle_pod(
                     }
                 }
 
-                let all_containers_finished = pod
+                if let Some(pod_phase) = pod
                     .status
                     .as_ref()
-                    .map(|pod_status| pod_status.container_statuses.as_ref())
+                    .map(|status| status.phase.as_ref())
                     .flatten()
-                    .map(|container_statuses| {
-                        container_statuses.iter().all(|container_status| {
-                            match container_status.state.as_ref() {
-                                Some(state) => state.terminated.is_some(),
-                                None => false,
-                            }
-                        })
-                    })
-                    .unwrap_or(false);
+                {
+                    if pod_phase == "Succeeded" || pod_phase == "Failed" {
+                        kick_off_next_step(
+                            running_pod.installation_id,
+                            &running_pod.repo_name,
+                            &running_pod.commit_sha,
+                            &running_pod.branch_name,
+                            running_pod.step_section,
+                        )
+                        .await?;
 
-                if all_containers_finished {
-                    kick_off_next_step(
-                        running_pod.installation_id,
-                        &running_pod.repo_name,
-                        &running_pod.commit_sha,
-                        &running_pod.branch_name,
-                        running_pod.step_section,
-                    )
-                    .await?;
+                        running_pods.remove(&pod.name());
 
-                    delete_pod(&pod.name()).await?;
+                        delete_pod(&pod.name()).await?;
+                    }
                 }
             }
         }
         WatchEvent::Deleted(pod) => {
-            // Remove from the current running pods
-            running_pods.remove(&pod.name());
             info!("Pod was deleted! {:?}", pod);
         }
         WatchEvent::Bookmark(_) => {}
@@ -219,7 +220,7 @@ async fn handle_pod(
 async fn get_container_logs(
     pod_name: &str,
     container_name: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, kube::error::Error> {
     let client = Client::try_default().await?;
     let pods: Api<Pod> = Api::namespaced(client, "kubesci");
 
@@ -228,18 +229,16 @@ async fn get_container_logs(
     lp.timestamps = true;
     lp.container = Some(container_name.to_string());
 
-    Ok(pods.logs(pod_name, &lp).await?)
+    pods.logs(pod_name, &lp).await
 }
 
-async fn delete_pod(pod_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn delete_pod(pod_name: &str) -> Result<(), kube::error::Error> {
     let client = Client::try_default().await?;
     let pods: Api<Pod> = Api::namespaced(client, "kubesci");
 
     let dp = DeleteParams::default();
 
-    pods.delete(pod_name, &dp).await?;
-
-    Ok(())
+    pods.delete(pod_name, &dp).await.map(|_result| ())
 }
 
 async fn mark_step_complete(
