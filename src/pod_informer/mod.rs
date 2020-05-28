@@ -18,7 +18,7 @@ use kube::{
     runtime::Informer,
     Client,
 };
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 use std::env;
 
@@ -43,12 +43,14 @@ pub async fn poll_pods() {
         let mut pods = inf.poll().await.unwrap().boxed();
 
         while let Some(event) = pods.try_next().await.unwrap() {
-            handle_pod(event, &mut running_pods).await.unwrap();
+            match handle_pod(event, &mut running_pods).await {
+                Ok(()) => {}
+                Err(e) => error!("Encountered error while polling pods: {}", e),
+            }
         }
     }
 }
 
-// This function lets the app handle an event from kube
 async fn handle_pod(
     ev: WatchEvent<Pod>,
     running_pods: &mut HashMap<String, RunningPod>,
@@ -56,6 +58,8 @@ async fn handle_pod(
     match ev {
         WatchEvent::Added(pod) => {
             info!("Pod was added: {}", pod.name());
+
+            // TO DO: Add checks to clean up pipelines that finished when controller was done
 
             let maybe_running_pod = &pod
                 .meta()
@@ -164,8 +168,9 @@ async fn handle_pod(
                                 .as_ref()
                                 .unwrap();
 
-                            let Time(finished_at) =
-                                finished_pod_state.finished_at.as_ref().unwrap();
+                            let Time(finished_at) = finished_pod_state
+                                .finished_at
+                                .unwrap_or_else(|| Time(Utc::now()));
 
                             mark_step_complete(
                                 running_pod.installation_id,
@@ -223,7 +228,7 @@ async fn handle_pod(
 async fn get_container_logs(
     pod_name: &str,
     container_name: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, kube::error::Error> {
     let client = Client::try_default().await?;
     let pods: Api<Pod> = Api::namespaced(client, "kubesci");
 
@@ -232,18 +237,16 @@ async fn get_container_logs(
     lp.timestamps = true;
     lp.container = Some(container_name.to_string());
 
-    Ok(pods.logs(pod_name, &lp).await?)
+    pods.logs(pod_name, &lp).await
 }
 
-async fn delete_pod(pod_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn delete_pod(pod_name: &str) -> Result<(), kube::error::Error> {
     let client = Client::try_default().await?;
     let pods: Api<Pod> = Api::namespaced(client, "kubesci");
 
     let dp = DeleteParams::default();
 
-    pods.delete(pod_name, &dp).await?;
-
-    Ok(())
+    pods.delete(pod_name, &dp).await.map(|_result| ())
 }
 
 async fn mark_step_complete(
