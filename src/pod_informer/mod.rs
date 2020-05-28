@@ -92,9 +92,7 @@ async fn handle_pod(
                 .flatten();
 
             if let Some(running_pod) = maybe_running_pod {
-                let pod_name = "some-name".to_string();
-
-                running_pods.insert(pod_name, running_pod.clone());
+                running_pods.insert(pod.name(), running_pod.clone());
             }
         }
         WatchEvent::Modified(pod) => {
