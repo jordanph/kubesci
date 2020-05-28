@@ -35,7 +35,7 @@ pub fn generate_pod_for_steps(
 
     let git_checkout_init_container = GitInitContainer {
         clone_url: &clone_url,
-        commit_sha: commit_sha,
+        commit_sha,
         volume_mount_names: &volume_mount_names,
     };
 
@@ -197,7 +197,6 @@ fn generate_volume_mounts(
     secret_mounts.dedup_by(|m1, m2| m1.name.eq(&m2.name));
 
     let container_repo_volume_mounts: Vec<Volume> = volume_mount_names
-        .clone()
         .iter()
         .map(|check_run_id| Volume {
             aws_elastic_block_store: None,

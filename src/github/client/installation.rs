@@ -28,7 +28,7 @@ struct CheckRunOutput<'a> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct Action<'a> {
+struct Action<'a> {
     pub label: &'a str,
     pub description: &'a str,
     pub identifier: String,
