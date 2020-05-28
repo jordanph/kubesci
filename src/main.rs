@@ -18,6 +18,7 @@ use pod_informer::poll_pods;
 
 mod github;
 mod handlers;
+mod kubernetes;
 mod pipeline;
 mod pod_informer;
 mod routes;

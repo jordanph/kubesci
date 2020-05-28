@@ -1,4 +1,4 @@
-use crate::pipeline::KubernetesContainer;
+use crate::kubernetes::KubernetesContainer;
 use k8s_openapi::api::core::v1::{Container, EnvVar, VolumeMount};
 
 pub struct GitInitContainer<'a> {
