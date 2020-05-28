@@ -21,8 +21,8 @@ use pod_informer::poll_pods;
 mod github;
 mod handlers;
 mod pipeline;
-mod routes;
 mod pod_informer;
+mod routes;
 
 #[tokio::main]
 async fn main() {
@@ -72,10 +72,10 @@ async fn main() {
         .expect("Unable to parse socket address");
 
     let tasks = vec![
-        tokio::spawn(async move {  warp::serve(app_routes).run(socket_address).await }),
+        tokio::spawn(async move { warp::serve(app_routes).run(socket_address).await }),
         tokio::spawn(async move { poll_pods().await }),
     ];
-    
+
     futures::future::join_all(tasks).await;
 
     // warp::serve(app_routes).run(socket_address).await
