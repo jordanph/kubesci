@@ -1,5 +1,4 @@
 use crate::pipeline::init_containers::git::GitInitContainer;
-use crate::pipeline::sidecar_containers::PollingSidecarContainer;
 use crate::pipeline::KubernetesContainer;
 use crate::pipeline::StepWithCheckRunId;
 use log::info;
@@ -16,25 +15,14 @@ pub fn generate_kubernetes_pipeline(
     github_head_sha: &str,
     repo_name: &str,
     namespace: &str,
-    installation_id: u32,
+    _installation_id: u32,
     step_section: usize,
-    branch: &str,
+    _branch: &str,
 ) -> Pod {
-    let mut containers: Vec<Container> = steps_with_check_run_id
+    let containers: Vec<Container> = steps_with_check_run_id
         .iter()
         .map(|step_with_check_run_id| step_with_check_run_id.to_container())
         .collect();
-
-    let side_car_container = PollingSidecarContainer {
-        installation_id,
-        namespace,
-        repo_name,
-        commit_sha: github_head_sha,
-        step_section,
-        branch,
-    };
-
-    containers.push(side_car_container.to_container());
 
     info!("Containers to deploy: {}", json!(containers));
 

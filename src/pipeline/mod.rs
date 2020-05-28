@@ -1,6 +1,5 @@
 pub mod generate;
 pub mod init_containers;
-pub mod sidecar_containers;
 pub mod steps_filter;
 
 use regex::Regex;
