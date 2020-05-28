@@ -338,7 +338,7 @@ async fn kick_off_next_step(
         let maybe_steps = filter(&raw_pipeline.steps, branch_name, next_step_section);
 
         if let Some(Right(steps)) = maybe_steps {
-            let mut steps_with_check_run_id: Vec<StepWithCheckRunId> = Vec::new();
+            let mut steps_with_check_run_id: Vec<StepWithCheckRunId> = Vec::with_capacity(steps.len());
 
             for step in steps {
                 let checkrun_response = github_installation_client
