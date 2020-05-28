@@ -24,7 +24,8 @@ steps:
       - "--context=dir:///app"
       - "--cache=true"
       - "--cache-repo=jordanph/kubes-cd-cache"
-      - "--destination=jordanph/kubes-cd:latest"
+      - "--destination=jordanph/kubes-cd:0.1.$(CHECK_RUN_ID)"
+      - "--destination=jordanph/kubes-cd:0.1"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -38,6 +39,22 @@ steps:
       - "--cache=true"
       - "--cache-repo=jordanph/kubes-cd-dependencies-image-cache"
       - "--destination=jordanph/kubes-cd-dependencies-image:latest"
+    mountSecret:
+      - name: docker-config
+        mountPath: /kaniko/.docker
+
+  - block: "Publish image as latest"
+    branch: master
+
+  - name: "Release image as latest"
+    image: gcr.io/kaniko-project/executor:latest
+    branch: master
+    args:
+      - "--dockerfile=/app/Dockerfile"
+      - "--context=dir:///app"
+      - "--cache=true"
+      - "--cache-repo=jordanph/kubes-cd-cache"
+      - "--destination=jordanph/kubes-cd:latest"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
