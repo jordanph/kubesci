@@ -1,5 +1,4 @@
 use crate::pipeline::init_containers::git::GitInitContainer;
-use crate::pipeline::sidecar_containers::PollingSidecarContainer;
 use crate::pipeline::KubernetesContainer;
 use crate::pipeline::StepWithCheckRunId;
 use log::info;
@@ -20,21 +19,10 @@ pub fn generate_kubernetes_pipeline(
     step_section: usize,
     branch: &str,
 ) -> Pod {
-    let mut containers: Vec<Container> = steps_with_check_run_id
+    let containers: Vec<Container> = steps_with_check_run_id
         .iter()
         .map(|step_with_check_run_id| step_with_check_run_id.to_container())
         .collect();
-
-    let side_car_container = PollingSidecarContainer {
-        installation_id,
-        namespace,
-        repo_name,
-        commit_sha: github_head_sha,
-        step_section,
-        branch,
-    };
-
-    containers.push(side_car_container.to_container());
 
     info!("Containers to deploy: {}", json!(containers));
 
@@ -146,6 +134,15 @@ pub fn generate_kubernetes_pipeline(
     pod_labels.insert("commit".to_string(), short_commit.to_string());
     pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
 
+    pod_labels.insert("installation_id".to_string(), installation_id.to_string());
+    pod_labels.insert(
+        "repo_name".to_string(),
+        repo_name.to_string().replace("/", "."),
+    );
+    pod_labels.insert("branch_name".to_string(), branch.to_string());
+    pod_labels.insert("commit_sha".to_string(), github_head_sha.to_string());
+    pod_labels.insert("step_section".to_string(), step_section.to_string());
+
     let pod_deployment_config = Pod {
         metadata: Some(ObjectMeta {
             annotations: None,
@@ -156,7 +153,6 @@ pub fn generate_kubernetes_pipeline(
             finalizers: None,
             generate_name: None,
             generation: None,
-            initializers: None,
             labels: Some(pod_labels),
             managed_fields: None,
             name: Some(format!("{}-{}", github_head_sha, step_section)),
@@ -174,6 +170,7 @@ pub fn generate_kubernetes_pipeline(
             dns_config: None,
             dns_policy: None,
             enable_service_links: None,
+            ephemeral_containers: None,
             host_aliases: None,
             host_ipc: None,
             host_network: None,
@@ -183,6 +180,7 @@ pub fn generate_kubernetes_pipeline(
             init_containers: Some(vec![git_checkout_init_container.to_container()]),
             node_name: None,
             node_selector: None,
+            overhead: None,
             preemption_policy: None,
             priority: None,
             priority_class_name: None,
@@ -196,6 +194,7 @@ pub fn generate_kubernetes_pipeline(
             share_process_namespace: None,
             subdomain: None,
             termination_grace_period_seconds: None,
+            topology_spread_constraints: None,
             tolerations: None,
             volumes: Some(volumes),
         }),

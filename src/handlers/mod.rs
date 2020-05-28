@@ -6,9 +6,7 @@ pub mod check_run;
 pub mod check_suite;
 pub mod pipeline;
 pub mod pipelines;
-pub mod pod_finished_successfully;
 pub mod steps;
-pub mod update_check_run;
 
 #[derive(Serialize, Clone)]
 pub struct Run {

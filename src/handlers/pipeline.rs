@@ -33,7 +33,7 @@ pub async fn handle_get_pipeline(pipeline_name: String) -> Result<impl warp::Rep
 async fn get_pipeline(
     pipeline_name: String,
 ) -> Result<serde_json::value::Value, Box<dyn std::error::Error>> {
-    let client = Client::infer().await?;
+    let client = Client::try_default().await?;
     let namespace = std::env::var("NAMESPACE").unwrap_or_else(|_| "default".into());
 
     let pods_api: Api<Pod> = Api::namespaced(client, &namespace);

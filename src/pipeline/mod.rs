@@ -1,6 +1,5 @@
 pub mod generate;
 pub mod init_containers;
-pub mod sidecar_containers;
 pub mod steps_filter;
 
 use regex::Regex;
@@ -179,6 +178,7 @@ impl<'a> KubernetesContainer for StepWithCheckRunId<'a> {
             readiness_probe: None,
             resources: None,
             security_context: None,
+            startup_probe: None,
             stdin: None,
             stdin_once: None,
             termination_message_path: None,

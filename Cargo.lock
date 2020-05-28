@@ -26,6 +26,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arc-swap"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b585a98a234c46fc563103e9278c9391fde1f4e6850334da895d27edb9580f62"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -685,19 +691,16 @@ dependencies = [
 
 [[package]]
 name = "k8s-openapi"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96affb18356fc998baa692c2185d198095ffdf6e6fff3bc9efb4927952f86851"
+checksum = "eae6d236dfb2b60d27cdbcb3d20511713aff6d23f9bf2f3d6b594c232ea99e04"
 dependencies = [
- "base64 0.11.0",
+ "base64 0.12.0",
  "bytes",
  "chrono",
- "http",
- "percent-encoding",
  "serde",
  "serde-value",
  "serde_json",
- "url",
 ]
 
 [[package]]
@@ -712,12 +715,12 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.31.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66be960d78ad587c7f89b24eb5f85a2b83da0e11d0fd7ffb000ce7bc01c52514"
+checksum = "aa1b018930b98da87122377ee0f5093d3fb25df762db489c1a321d92e0177afb"
 dependencies = [
  "Inflector",
- "base64 0.11.0",
+ "base64 0.12.0",
  "bytes",
  "chrono",
  "dirs",
@@ -730,7 +733,6 @@ dependencies = [
  "openssl",
  "reqwest",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_yaml",
  "thiserror",
@@ -741,9 +743,9 @@ dependencies = [
 
 [[package]]
 name = "kube-derive"
-version = "0.31.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e94aee9e53e543a11c6f13a8b7c7dbd4aedf78eb08214570a17c7878de90c37"
+checksum = "71c20c55883364a0712cc6360175e28117c13ac3aaca5ed506bcefeac709e6ea"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -757,6 +759,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "either",
+ "futures",
  "itertools",
  "jsonwebtoken",
  "k8s-openapi",
@@ -783,9 +786,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.68"
+version = "0.2.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea0c0405123bba743ee3f91f49b1c7cfb684eef0da0a50110f758ccf24cdff0"
+checksum = "3baa92041a6fec78c687fa0cc2b3fae8884f743d672cf551bed1d6dac6988d0f"
 
 [[package]]
 name = "linked-hash-map"
@@ -889,6 +892,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio-uds"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afcb699eb26d4332647cc848492bbc15eafb26f08d0304550d5aa1f612e066f0"
+dependencies = [
+ "iovec",
+ "libc",
+ "mio",
+]
+
+[[package]]
 name = "miow"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -985,9 +999,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "openssl"
-version = "0.10.28"
+version = "0.10.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "973293749822d7dd6370d6da1e523b0d1db19f06c459134c658b2a4261378b52"
+checksum = "cee6d85f4cb4c4f59a6a85d5b68a233d280c82e29e822913b9c8b129fbf20bdd"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -1005,9 +1019,9 @@ checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.54"
+version = "0.9.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1024c0a59774200a555087a6da3f253a9095a5f344e353b212ac4c8b8e450986"
+checksum = "7410fef80af8ac071d4f63755c0ab89ac3df0fd1ea91f1d1f37cf5cec4395990"
 dependencies = [
  "autocfg 1.0.0",
  "cc",
@@ -1605,6 +1619,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 
 [[package]]
+name = "signal-hook-registry"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94f478ede9f64724c5d173d7bb56099ec3e2d9fc2774aac65d34b8b890405f41"
+dependencies = [
+ "arc-swap",
+ "libc",
+]
+
+[[package]]
 name = "simple_asn1"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1807,20 +1831,24 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "0.2.16"
+version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee5a0dd887e37d37390c13ff8ac830f992307fe30a1fff0ab8427af67211ba28"
+checksum = "d099fa27b9702bed751524694adbe393e18b36b204da91eb1cbbbbb4a5ee2d58"
 dependencies = [
  "bytes",
  "fnv",
  "futures-core",
  "iovec",
  "lazy_static",
+ "libc",
  "memchr",
  "mio",
+ "mio-uds",
  "pin-project-lite",
+ "signal-hook-registry",
  "slab",
  "tokio-macros",
+ "winapi 0.3.8",
 ]
 
 [[package]]
