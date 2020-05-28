@@ -185,38 +185,30 @@ async fn handle_pod(
                     }
                 }
 
-                let all_containers_finished = pod
+                if let Some(pod_phase) = pod
                     .status
                     .as_ref()
-                    .map(|pod_status| pod_status.container_statuses.as_ref())
+                    .map(|status| status.phase.as_ref())
                     .flatten()
-                    .map(|container_statuses| {
-                        container_statuses.iter().all(|container_status| {
-                            match container_status.state.as_ref() {
-                                Some(state) => state.terminated.is_some(),
-                                None => false,
-                            }
-                        })
-                    })
-                    .unwrap_or(false);
+                {
+                    if pod_phase == "Succeeded" || pod_phase == "Failed" {
+                        kick_off_next_step(
+                            running_pod.installation_id,
+                            &running_pod.repo_name,
+                            &running_pod.commit_sha,
+                            &running_pod.branch_name,
+                            running_pod.step_section,
+                        )
+                        .await?;
 
-                if all_containers_finished {
-                    kick_off_next_step(
-                        running_pod.installation_id,
-                        &running_pod.repo_name,
-                        &running_pod.commit_sha,
-                        &running_pod.branch_name,
-                        running_pod.step_section,
-                    )
-                    .await?;
+                        running_pods.remove(&pod.name());
 
-                    delete_pod(&pod.name()).await?;
+                        delete_pod(&pod.name()).await?;
+                    }
                 }
             }
         }
         WatchEvent::Deleted(pod) => {
-            // Remove from the current running pods
-            running_pods.remove(&pod.name());
             info!("Pod was deleted! {:?}", pod);
         }
         WatchEvent::Bookmark(_) => {}
