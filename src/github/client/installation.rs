@@ -55,7 +55,7 @@ pub struct GetCheckRunResponse {
 pub struct GithubInstallationClient<'a> {
     pub repository_name: &'a str,
     pub github_installation_token: String,
-    pub base_url: String,
+    pub base_url: &'a str,
 }
 
 #[derive(Deserialize, Debug)]
