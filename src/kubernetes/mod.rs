@@ -1,4 +1,5 @@
 pub mod generate;
+pub mod helpers;
 pub mod init_containers;
 
 use regex::Regex;
