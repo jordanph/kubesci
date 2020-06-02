@@ -42,7 +42,7 @@ async fn get_pipeline_steps(
 
     let pods_api: Api<Pod> = Api::namespaced(client, &namespace);
 
-    let labels = format!("app=kubes-cd-test,repo={},commit={}", pipeline_name, commit);
+    let labels = format!("app=kubesci-step,repo={},commit={}", pipeline_name, commit);
 
     let list_params = ListParams::default().labels(&labels);
 

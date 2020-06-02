@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
-  name: kubes-cd-ingress
+  name: kubesci-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
@@ -15,5 +15,5 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: kubes-cd-controller
+          serviceName: kubesci-controller
           servicePort: 80

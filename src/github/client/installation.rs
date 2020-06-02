@@ -228,7 +228,7 @@ impl<'a> GithubInstallationClient<'a> {
         github_commit_sha: &str,
     ) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let request_url = format!(
-            "{}/repos/{}/contents/.kubes-cd/pipeline.yml?ref={}",
+            "{}/repos/{}/contents/.kubesci/pipeline.yml?ref={}",
             self.base_url, self.repository_name, github_commit_sha
         );
 

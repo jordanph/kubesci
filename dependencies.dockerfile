@@ -7,9 +7,9 @@ RUN mkdir /.cargo-cache
 
 ENV CARGO_TARGET_DIR=/.cargo-cache
 
-RUN USER=root cargo new --bin kubes-cd
+RUN USER=root cargo new --bin kubesci
 
-WORKDIR /kubes-cd
+WORKDIR /kubesci
 
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
@@ -18,4 +18,4 @@ RUN cargo build
 
 WORKDIR /
 
-RUN rm -r kubes-cd
+RUN rm -r kubesci
