@@ -1,16 +1,16 @@
 steps:
   - name: "Run tests"
-    image: jordanph/kubes-cd-dependencies-image:latest
+    image: jordanph/kubesci-dependencies-image:latest
     commands:
       - cargo test
 
   - name: "Run linting"
-    image: jordanph/kubes-cd-dependencies-image:latest
+    image: jordanph/kubesci-dependencies-image:latest
     commands:
       - cargo clippy -- -D warnings
 
   - name: "Run formatting"
-    image: jordanph/kubes-cd-dependencies-image:latest
+    image: jordanph/kubesci-dependencies-image:latest
     commands:
       - cargo fmt -- --check
 
@@ -23,9 +23,9 @@ steps:
       - "--dockerfile=/app/Dockerfile"
       - "--context=dir:///app"
       - "--cache=true"
-      - "--cache-repo=jordanph/kubes-cd-cache"
-      - "--destination=jordanph/kubes-cd:0.1.$(CHECK_RUN_ID)"
-      - "--destination=jordanph/kubes-cd:0.1"
+      - "--cache-repo=jordanph/kubesci-cache"
+      - "--destination=jordanph/kubesci:0.1.$(CHECK_RUN_ID)"
+      - "--destination=jordanph/kubesci:0.1"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -37,8 +37,8 @@ steps:
       - "--dockerfile=/app/dependencies.dockerfile"
       - "--context=dir:///app"
       - "--cache=true"
-      - "--cache-repo=jordanph/kubes-cd-dependencies-image-cache"
-      - "--destination=jordanph/kubes-cd-dependencies-image:latest"
+      - "--cache-repo=jordanph/kubesci-dependencies-image-cache"
+      - "--destination=jordanph/kubesci-dependencies-image:latest"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -53,8 +53,8 @@ steps:
       - "--dockerfile=/app/Dockerfile"
       - "--context=dir:///app"
       - "--cache=true"
-      - "--cache-repo=jordanph/kubes-cd-cache"
-      - "--destination=jordanph/kubes-cd:latest"
+      - "--cache-repo=jordanph/kubesci-cache"
+      - "--destination=jordanph/kubesci:latest"
     mountSecret:
       - name: docker-config
         mountPath: /kaniko/.docker

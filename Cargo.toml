@@ -1,5 +1,5 @@
 [package]
-name = "kubes-cd"
+name = "kubesci"
 version = "0.1.0"
 authors = ["Jordan Holland <jordan.holland@rea-group.com>"]
 edition = "2018"

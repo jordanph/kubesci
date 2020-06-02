@@ -2,14 +2,14 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kubes-cd
+  name: kubesci
 automountServiceAccountToken: true
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: kubes-cd
+  name: kubesci
 rules:
 - apiGroups: [""] # "" indicates the core API group
   resources: ["pods", "pods/log"]
@@ -19,37 +19,37 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: kubes-cd
+  name: kubesci
 roleRef:
   kind: Role
-  name: kubes-cd
+  name: kubesci
   apiGroup: rbac.authorization.k8s.io
 subjects:
 - kind: ServiceAccount
-  name: kubes-cd
+  name: kubesci
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubes-cd-deployment
+  name: kubesci-deployment
   labels:
-    app: kubes-cd-controller
+    app: kubesci-controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubes-cd-controller
+      app: kubesci-controller
   template:
     metadata:
       labels:
-        app: kubes-cd-controller
+        app: kubesci-controller
     spec:
-      serviceAccount: kubes-cd
-      serviceAccountName: kubes-cd
+      serviceAccount: kubesci
+      serviceAccountName: kubesci
       containers:
-      - name: kubes-cd-controller
-        image: jordanph/kubes-cd:latest
+      - name: kubesci-controller
+        image: jordanph/kubesci:0.1
         ports:
         - containerPort: 3030
         env:
@@ -69,10 +69,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kubes-cd-controller
+  name: kubesci-controller
 spec:
   selector:
-    app: kubes-cd-controller
+    app: kubesci-controller
   ports:
     - protocol: TCP
       port: 80

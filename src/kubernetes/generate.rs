@@ -53,7 +53,7 @@ pub fn generate_pod_for_steps(
     let init_containers = vec![git_checkout_init_container.to_container()];
 
     // Hardcoded to match deployment config
-    let service_account = "kubes-cd";
+    let service_account = "kubesci";
 
     let pod_deployment_config = Pod {
         metadata: Some(ObjectMeta {
@@ -133,7 +133,7 @@ fn generate_pod_labels(
 
     pod_labels.insert("repo".to_string(), repo_name.replace("/", "."));
     pod_labels.insert("commit".to_string(), short_commit_sha.to_string());
-    pod_labels.insert("app".to_string(), "kubes-cd-test".to_string());
+    pod_labels.insert("app".to_string(), "kubesci-step".to_string());
     pod_labels.insert("installation_id".to_string(), installation_id.to_string());
     pod_labels.insert(
         "repo_name".to_string(),

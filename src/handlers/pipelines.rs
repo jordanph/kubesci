@@ -36,7 +36,7 @@ async fn get_pipelines() -> Result<serde_json::value::Value, Box<dyn std::error:
 
     let pods_api: Api<Pod> = Api::namespaced(client, &namespace);
 
-    let list_params = ListParams::default().labels("app=kubes-cd-test");
+    let list_params = ListParams::default().labels("app=kubesci-step");
 
     let pods_response = pods_api.list(&list_params).await?;
 
