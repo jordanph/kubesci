@@ -1,11 +1,11 @@
 use crate::github::client::auth::GithubAuthorisationClient;
 use crate::github::client::installation::GithubInstallationClient;
+use crate::kubernetes::helpers::extract_newly_finished_container_states;
 use crate::pipeline::PipelineService;
 use crate::routes::CompleteCheckRunRequest;
 use chrono::Utc;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Container;
-use k8s_openapi::api::core::v1::ContainerStateTerminated;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{
@@ -60,45 +60,10 @@ impl PodInformer {
                 info!("Pod was added: {}", pod.name());
 
                 // TO DO: Add checks to clean up pipelines that finished when controller was down
-
-                let maybe_running_pod = &pod
-                    .meta()
-                    .labels
-                    .as_ref()
-                    .map(|labels| {
-                        let maybe_installation_id = labels.get("installation_id");
-                        let maybe_repo_name = labels.get("repo_name");
-                        let maybe_branch_name = labels.get("branch_name");
-                        let maybe_commit_sha = labels.get("commit_sha");
-                        let maybe_step_section = labels.get("step_section");
-
-                        match (
-                            maybe_installation_id,
-                            maybe_repo_name,
-                            maybe_branch_name,
-                            maybe_commit_sha,
-                            maybe_step_section,
-                        ) {
-                            (
-                                Some(installation_id),
-                                Some(repo_name),
-                                Some(branch_name),
-                                Some(commit_sha),
-                                Some(step_section),
-                            ) => Some(RunningPod {
-                                installation_id: installation_id.clone().parse().unwrap(),
-                                repo_name: repo_name.clone().replace(".", "/"),
-                                branch_name: branch_name.clone(),
-                                commit_sha: commit_sha.clone(),
-                                step_section: step_section.clone().parse().unwrap(),
-                            }),
-                            _ => None,
-                        }
-                    })
-                    .flatten();
+                let maybe_running_pod = transform_to_running_pod(&pod);
 
                 if let Some(running_pod) = maybe_running_pod {
-                    running_pods.insert(pod.name(), running_pod.clone());
+                    running_pods.insert(pod.name(), running_pod);
                 }
             }
             WatchEvent::Modified(pod) => {
@@ -107,62 +72,30 @@ impl PodInformer {
                 let maybe_pod = running_pods.get(&pod.name());
 
                 if let Some(running_pod) = maybe_pod {
-                    // Check to see if one of the containers has finished comparing previous state
-                    let maybe_newly_finished_pods = pod
-                        .status
-                        .as_ref()
-                        .map(|status| status.container_statuses.as_ref())
-                        .flatten()
-                        .map(|container_status| {
-                            container_status
-                                .iter()
-                                .filter_map(|container_status| {
-                                    let maybe_last_state = container_status.last_state.as_ref();
-                                    let maybe_state = container_status.state.as_ref();
+                    let maybe_newly_finished_containers =
+                        extract_newly_finished_container_states(&pod);
 
-                                    match (maybe_last_state, maybe_state) {
-                                        (Some(last_state), Some(state)) => {
-                                            if last_state.terminated.is_some() {
-                                                None
-                                            } else if let Some(terminated) =
-                                                state.terminated.clone()
-                                            {
-                                                Some((container_status.name.clone(), terminated))
-                                            } else {
-                                                None
-                                            }
-                                        }
-                                        (None, Some(state)) => {
-                                            if let Some(terminated) = state.terminated.clone() {
-                                                Some((container_status.name.clone(), terminated))
-                                            } else {
-                                                None
-                                            }
-                                        }
-                                        _ => None,
-                                    }
-                                })
-                                .collect::<Vec<(String, ContainerStateTerminated)>>()
-                        });
-
-                    if let Some(newly_finished_pods) = maybe_newly_finished_pods {
-                        for (finished_pod_name, finished_pod_state) in newly_finished_pods {
-                            if let Some(container) = pod
+                    if let Some(newly_finished_pods) = maybe_newly_finished_containers {
+                        for (finished_container_name, finished_container_state) in
+                            newly_finished_pods
+                        {
+                            let maybe_finished_container = pod
                                 .spec
                                 .as_ref()
                                 .map(|pod_spec| pod_spec.containers.as_ref())
                                 .map(|containers: &Vec<Container>| {
                                     containers
                                         .iter()
-                                        .find(|container| container.name == finished_pod_name)
+                                        .find(|container| container.name == finished_container_name)
                                 })
-                                .flatten()
-                            {
+                                .flatten();
+
+                            if let Some(finished_container) = maybe_finished_container {
                                 let logs = self
-                                    .get_container_logs(&pod.name(), &container.name)
+                                    .get_container_logs(&pod.name(), &finished_container.name)
                                     .await?;
 
-                                let check_run_id = container
+                                let check_run_id = finished_container
                                     .env
                                     .as_ref()
                                     .map(|env| env.iter().find(|env| env.name == "CHECK_RUN_ID"))
@@ -172,7 +105,7 @@ impl PodInformer {
                                     .as_ref()
                                     .unwrap();
 
-                                let Time(finished_at) = finished_pod_state
+                                let Time(finished_at) = finished_container_state
                                     .finished_at
                                     .unwrap_or_else(|| Time(Utc::now()));
 
@@ -182,7 +115,7 @@ impl PodInformer {
                                     &running_pod.repo_name,
                                     &logs,
                                     &finished_at.to_rfc3339(),
-                                    finished_pod_state.exit_code == 0,
+                                    finished_container_state.exit_code == 0,
                                 )
                                 .await?;
                             }
@@ -289,4 +222,41 @@ impl PodInformer {
 
         Ok(())
     }
+}
+
+fn transform_to_running_pod(pod: &Pod) -> Option<RunningPod> {
+    pod.meta()
+        .labels
+        .as_ref()
+        .map(|labels| {
+            let maybe_installation_id = labels.get("installation_id");
+            let maybe_repo_name = labels.get("repo_name");
+            let maybe_branch_name = labels.get("branch_name");
+            let maybe_commit_sha = labels.get("commit_sha");
+            let maybe_step_section = labels.get("step_section");
+
+            match (
+                maybe_installation_id,
+                maybe_repo_name,
+                maybe_branch_name,
+                maybe_commit_sha,
+                maybe_step_section,
+            ) {
+                (
+                    Some(installation_id),
+                    Some(repo_name),
+                    Some(branch_name),
+                    Some(commit_sha),
+                    Some(step_section),
+                ) => Some(RunningPod {
+                    installation_id: installation_id.clone().parse().unwrap(),
+                    repo_name: repo_name.clone().replace(".", "/"),
+                    branch_name: branch_name.clone(),
+                    commit_sha: commit_sha.clone(),
+                    step_section: step_section.clone().parse().unwrap(),
+                }),
+                _ => None,
+            }
+        })
+        .flatten()
 }
