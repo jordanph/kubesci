@@ -29,7 +29,7 @@ impl PipelineService {
         repo_name: &str,
         commit_sha: &str,
         branch_name: &str,
-        step_section: usize,
+        step_section: Option<usize>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let github_authorisation_client =
             GithubAuthorisationClient::new(&self.github_private_key, &self.application_id)?;
@@ -51,8 +51,9 @@ impl PipelineService {
         if let Some(raw_pipeline) = maybe_raw_pipeline {
             let raw_pipeline: RawPipeline = serde_yaml::from_str(&raw_pipeline)?;
 
-            let previous_step_section: usize = step_section;
-            let next_step_section = previous_step_section + 1;
+            let next_step_section = step_section
+                .map(|previous_step_section| previous_step_section + 1)
+                .unwrap_or_else(|| 0);
 
             let maybe_steps = filter(&raw_pipeline.steps, branch_name, next_step_section);
 

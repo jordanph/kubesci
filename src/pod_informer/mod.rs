@@ -135,7 +135,7 @@ impl PodInformer {
                                     &running_pod.repo_name,
                                     &running_pod.commit_sha,
                                     &running_pod.branch_name,
-                                    running_pod.step_section,
+                                    Some(running_pod.step_section),
                                 )
                                 .await?;
 

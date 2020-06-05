@@ -49,7 +49,7 @@ spec:
       serviceAccountName: kubesci
       containers:
       - name: kubesci-controller
-        image: jordanph/kubesci:0.1
+        image: jordanph/kubesci:latest
         ports:
         - containerPort: 3030
         env:
