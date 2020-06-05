@@ -11,15 +11,13 @@ pub async fn handle_check_suite_request(
         return Ok(warp::reply::with_status("".to_string(), StatusCode::OK));
     }
 
-    let step_section = 0;
-
     match pipeline_service
         .start_step_section(
             github_webhook_request.installation.id,
             &github_webhook_request.repository.full_name,
             &github_webhook_request.check_suite.head_sha,
             &github_webhook_request.check_suite.head_branch,
-            step_section,
+            None,
         )
         .await
     {

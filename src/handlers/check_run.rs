@@ -24,7 +24,7 @@ pub async fn handle_check_run_request(
             &github_webhook_request.repository.full_name,
             &github_webhook_request.check_run.check_suite.head_sha,
             &github_webhook_request.check_run.check_suite.head_branch,
-            step_section,
+            Some(step_section),
         )
         .await
     {
