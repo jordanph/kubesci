@@ -101,7 +101,7 @@ impl PipelineService {
                 }
             } else if let Some(Left(block)) = maybe_steps {
                 github_installation_client
-                    .create_block_step(&block.name, commit_sha, next_step_section + 1)
+                    .create_block_step(&block.name, commit_sha, next_step_section)
                     .await?;
             }
         }
